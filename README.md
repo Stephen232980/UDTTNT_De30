@@ -22,11 +22,13 @@ Mở `http://127.0.0.1:8000`. Hệ thống tự tạo SQLite tại `data/blood_d
 
 Tài khoản demo (mật khẩu chung `HienMau2026!`):
 
-| Vai trò | Tài khoản |
-| --- | --- |
-| Quản trị viên | `admin` |
-| Điều phối viên | `dieuphoi` |
-| Tình nguyện viên | `tinhnguyen` |
+| Vai trò | Email đăng nhập | Tên đăng nhập rút gọn |
+| --- | --- | --- |
+| Quản trị viên | `admin@machdo.com` | `admin` |
+| Điều phối viên | `dieuphoi@machdo.com` | `dieuphoi` |
+| Tình nguyện viên | `tinhnguyen@machdo.com` | `tinhnguyen` |
+
+*Hệ thống hỗ trợ đăng nhập linh hoạt bằng cả Email đầy đủ hoặc Tên đăng nhập rút gọn.*
 
 ## Tích hợp AI
 

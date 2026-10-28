@@ -1884,3 +1884,182 @@ dialog::backdrop {
 .account-table{min-width:920px}.account-identity{display:grid;gap:4px}.account-identity span{font-size:12px;color:var(--muted)}.role-badge,.account-status{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;white-space:nowrap}.role-volunteer{color:#28624d;background:#e7f5ec}.role-coordinator{color:#795a18;background:#fff4d4}.role-admin{color:#674695;background:#f1eaff}.account-status i{width:7px;height:7px;border-radius:50%;background:currentColor}.status-active{color:#28774d;background:#e8f5ec}.status-locked{color:#ae3b3b;background:#fff0ef}.account-actions{display:flex;align-items:center;gap:7px}.account-actions select{min-width:120px;padding:8px 9px;border:1px solid var(--line);border-radius:8px;background:var(--white);color:var(--ink);font-size:12px}.account-actions button{white-space:nowrap}.account-actions button:disabled{opacity:.45;cursor:not-allowed}
 .account-section-head{align-items:center}.account-section-tools{display:flex;align-items:center;gap:14px}.account-create-form{display:grid;gap:14px;padding-top:16px}.account-create-form .field{display:grid;gap:7px}.account-create-form .field label{font-size:13px;font-weight:700;color:var(--muted)}.account-create-form input,.account-create-form select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--white);color:var(--ink);font:inherit}.account-create-form .dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:6px}
 @media(max-width:640px){.account-section-head{align-items:flex-start;flex-direction:column}.account-section-tools{width:100%;justify-content:space-between;gap:8px}.account-section-tools .button{padding-inline:10px}}
+
+/* Campaign Creator Badge */
+.campaign-creator-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: var(--muted);
+    background: var(--paper);
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border: 1px solid var(--line);
+    width: fit-content;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.campaign-creator-pill strong {
+    color: var(--forest);
+    font-weight: 600;
+}
+:root[data-theme="dark"] .campaign-creator-pill strong {
+    color: #85b89c;
+}
+
+/* Wide Dialog for Detail Views */
+dialog.wide,
+dialog:has(.campaign-detail-dialog),
+dialog:has(.user-detail-dialog) {
+    width: min(780px, calc(100vw - 28px));
+}
+
+/* Detail Dialogs */
+.campaign-detail-dialog,
+.user-detail-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.campaign-detail-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.campaign-detail-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.creator-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--muted);
+}
+.creator-badge strong {
+    color: var(--forest);
+}
+:root[data-theme="dark"] .creator-badge strong {
+    color: #85b89c;
+}
+
+.campaign-detail-title {
+    margin: 4px 0 0 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.campaign-detail-desc {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--muted);
+}
+
+.detail-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.detail-info-card {
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-info-card.span-two {
+    grid-column: 1 / -1;
+}
+
+.detail-info-card .info-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+}
+
+.detail-info-card .info-val {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.detail-slots-section,
+.detail-participants-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.detail-slots-section h3,
+.detail-participants-section h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--forest);
+}
+:root[data-theme="dark"] .detail-slots-section h3,
+:root[data-theme="dark"] .detail-participants-section h3 {
+    color: #85b89c;
+}
+
+.detail-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+}
+
+.detail-slot-pill {
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.slot-time-title {
+    font-size: 12px;
+    color: var(--ink);
+}
+
+.slot-meter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.slot-meter-text {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .detail-info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+

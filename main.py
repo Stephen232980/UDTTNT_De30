@@ -29,8 +29,18 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 SESSIONS: dict[str, dict[str, str]] = {}
 DEMO_PASSWORD = "HienMau2026!"
 SYSTEM_ACCOUNTS = {
-    "admin@gmail.com": ("Quản trị viên", "admin"),
-    "dieuphoi@gmail.com": ("Điều phối viên", "coordinator"),
+    "admin@machdo.com": ("Quản trị viên", "admin"),
+    "dieuphoi@machdo.com": ("Điều phối viên", "coordinator"),
+}
+LOGIN_ALIASES = {
+    "admin": "admin@machdo.com",
+    "dieuphoi": "dieuphoi@machdo.com",
+    "tinhnguyen": "tinhnguyen@machdo.com",
+    "admin@machdo.vn": "admin@machdo.com",
+    "dieuphoi@machdo.vn": "dieuphoi@machdo.com",
+    "tinhnguyen@machdo.vn": "tinhnguyen@machdo.com",
+    "admin@gmail.com": "admin@machdo.com",
+    "dieuphoi@gmail.com": "dieuphoi@machdo.com",
 }
 
 
@@ -66,7 +76,7 @@ def initialize_database() -> None:
         db.executescript("""
         CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,username TEXT UNIQUE,display_name TEXT,role TEXT,password TEXT,donor_id INTEGER REFERENCES donors(id),phone TEXT NOT NULL DEFAULT '',blood_group TEXT NOT NULL DEFAULT 'Chưa cập nhật',birth_date TEXT,address TEXT NOT NULL DEFAULT '',organization TEXT NOT NULL DEFAULT '',job_title TEXT NOT NULL DEFAULT '',email TEXT NOT NULL DEFAULT '',full_name TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','locked')),created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS donors(id INTEGER PRIMARY KEY,full_name TEXT NOT NULL,phone TEXT NOT NULL,email TEXT DEFAULT '',blood_group TEXT DEFAULT 'Chưa cập nhật',created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,birth_date TEXT,address TEXT DEFAULT '');
-        CREATE TABLE IF NOT EXISTS campaigns(id INTEGER PRIMARY KEY,title TEXT NOT NULL,venue TEXT NOT NULL,campaign_date TEXT NOT NULL,start_time TEXT NOT NULL,end_time TEXT NOT NULL,description TEXT DEFAULT '',status TEXT DEFAULT 'Đang mở');
+        CREATE TABLE IF NOT EXISTS campaigns(id INTEGER PRIMARY KEY,title TEXT NOT NULL,venue TEXT NOT NULL,campaign_date TEXT NOT NULL,start_time TEXT NOT NULL,end_time TEXT NOT NULL,description TEXT DEFAULT '',status TEXT DEFAULT 'Đang mở',created_by TEXT NOT NULL DEFAULT '');
         CREATE TABLE IF NOT EXISTS slots(id INTEGER PRIMARY KEY,campaign_id INTEGER REFERENCES campaigns(id),start_at TEXT,end_at TEXT,capacity INTEGER,UNIQUE(campaign_id,start_at));
         CREATE TABLE IF NOT EXISTS appointments(id INTEGER PRIMARY KEY,donor_id INTEGER REFERENCES donors(id),slot_id INTEGER REFERENCES slots(id),status TEXT DEFAULT 'Đã đăng ký',created_at TEXT DEFAULT CURRENT_TIMESTAMP,UNIQUE(donor_id,slot_id));
         CREATE TABLE IF NOT EXISTS notifications(id INTEGER PRIMARY KEY,user_id INTEGER REFERENCES users(id),title TEXT NOT NULL DEFAULT '',message TEXT NOT NULL DEFAULT '',type TEXT NOT NULL DEFAULT 'system',is_read INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,appointment_id INTEGER REFERENCES appointments(id),donor_id INTEGER REFERENCES donors(id),campaign_id INTEGER REFERENCES campaigns(id),sent_at TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -121,22 +131,37 @@ def initialize_database() -> None:
             db.execute("ALTER TABLE donors ADD COLUMN birth_date TEXT")
         if "address" not in donor_columns:
             db.execute("ALTER TABLE donors ADD COLUMN address TEXT NOT NULL DEFAULT ''")
-        for legacy, email in [("admin", "admin@machdo.vn"), ("dieuphoi", "dieuphoi@machdo.vn"), ("tinhnguyen", "tinhnguyen@machdo.vn")]:
+        campaign_columns = {row[1] for row in db.execute("PRAGMA table_info(campaigns)")}
+        if "created_by" not in campaign_columns:
+            db.execute("ALTER TABLE campaigns ADD COLUMN created_by TEXT NOT NULL DEFAULT ''")
+        db.execute("UPDATE campaigns SET created_by='Điều phối viên (dieuphoi@machdo.com)' WHERE created_by='' OR created_by IS NULL")
+        for legacy, email in [
+            ("admin", "admin@machdo.com"),
+            ("dieuphoi", "dieuphoi@machdo.com"),
+            ("admin@gmail.com", "admin@machdo.com"),
+            ("dieuphoi@gmail.com", "dieuphoi@machdo.com"),
+            ("admin@machdo.vn", "admin@machdo.com"),
+            ("dieuphoi@machdo.vn", "dieuphoi@machdo.com"),
+            ("tinhnguyen", "tinhnguyen@machdo.com"),
+            ("tinhnguyen@machdo.vn", "tinhnguyen@machdo.com"),
+        ]:
             if db.execute("SELECT 1 FROM users WHERE username=?", (email,)).fetchone() is None:
-                db.execute("UPDATE users SET username=? WHERE username=?", (email, legacy))
+                db.execute("UPDATE users SET username=?, email=? WHERE username=?", (email, email, legacy))
+            elif legacy != email and db.execute("SELECT 1 FROM users WHERE username=?", (legacy,)).fetchone():
+                db.execute("DELETE FROM users WHERE username=?", (legacy,))
         demo_users = [(email, label, role) for email, (label, role) in SYSTEM_ACCOUNTS.items()]
-        demo_users.append(("tinhnguyen@machdo.vn", "Tình nguyện viên", "volunteer"))
+        demo_users.append(("tinhnguyen@machdo.com", "Tình nguyện viên", "volunteer"))
         for email, label, role in demo_users:
             db.execute("INSERT OR IGNORE INTO users(username,display_name,role,password,email,full_name) VALUES (?,?,?,?,?,?)", (email, label, role, hash_password(DEMO_PASSWORD),email,label))
         if not db.execute("SELECT 1 FROM campaigns LIMIT 1").fetchone():
             samples = [("Giọt hồng tháng 9", "Nhà Văn hóa Thanh niên", date.today()+timedelta(days=3), "08:00", "12:00", "Ngày hội hiến máu tình nguyện cộng đồng."), ("Chủ nhật Đỏ", "Trung tâm Hội nghị ICTU", date.today()+timedelta(days=9), "07:00", "11:00", "Cùng sẻ chia giọt máu, trao thêm hy vọng.")]
             for title, venue, day, start, end, description in samples:
-                cid = db.execute("INSERT INTO campaigns(title,venue,campaign_date,start_time,end_time,description) VALUES (?,?,?,?,?,?)", (title,venue,day.isoformat(),start,end,description)).lastrowid
+                cid = db.execute("INSERT INTO campaigns(title,venue,campaign_date,start_time,end_time,description,created_by) VALUES (?,?,?,?,?,?,?)", (title,venue,day.isoformat(),start,end,description,"Điều phối viên (dieuphoi@machdo.com)")).lastrowid
                 for hour in range(int(start[:2]), int(end[:2])):
                     db.execute("INSERT INTO slots(campaign_id,start_at,end_at,capacity) VALUES (?,?,?,24)", (cid,f"{day.isoformat()}T{hour:02}:00",f"{day.isoformat()}T{hour+1:02}:00"))
         if not db.execute("SELECT 1 FROM donors LIMIT 1").fetchone():
             db.executemany("INSERT INTO donors(full_name,phone,email,blood_group) VALUES (?,?,?,?)", [("Nguyễn Minh Anh","0901234567","minhanh@example.vn","O+"),("Trần Gia Bảo","0912345678","giabao@example.vn","A+"),("Lê Thu Hà","0987654321","thuha@example.vn","B+"),("Phạm Quốc Huy","0976543210","quochuy@example.vn","AB+"),("Võ Khánh Linh","0934567890","khanhlinh@example.vn","O-")])
-        db.execute("UPDATE users SET donor_id=(SELECT id FROM donors ORDER BY id LIMIT 1) WHERE username='tinhnguyen@machdo.vn' AND donor_id IS NULL")
+        db.execute("UPDATE users SET donor_id=(SELECT id FROM donors ORDER BY id LIMIT 1) WHERE username='tinhnguyen@machdo.com' AND donor_id IS NULL")
         if not db.execute("SELECT 1 FROM procedures LIMIT 1").fetchone():
             db.executemany("INSERT INTO procedures(title,content) VALUES (?,?)", [("Trước khi hiến máu","Đăng ký thông tin, xuất trình giấy tờ tùy thân, được nhân viên y tế tư vấn và kiểm tra sức khỏe. Nên ăn nhẹ, uống đủ nước và nghỉ ngơi đầy đủ."),("Quy trình hiến máu","Quy trình gồm đăng ký, khám sàng lọc, hiến máu dưới sự giám sát của nhân viên y tế và nghỉ tại chỗ sau hiến; thường mất khoảng 45 đến 60 phút."),("Sau khi hiến máu","Nghỉ tại điểm hiến ít nhất 10 đến 15 phút, uống nước và dùng đồ ăn nhẹ. Tránh hoạt động gắng sức trong ngày; nếu thấy không khỏe, báo ngay nhân viên y tế."),("Điều kiện hiến máu","Việc đủ điều kiện hiến máu do nhân viên y tế đánh giá trực tiếp tại điểm hiến. Trợ lý không thể đánh giá sức khỏe cá nhân.")])
 
@@ -145,7 +170,7 @@ initialize_database()
 
 
 class Login(BaseModel):
-    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    email: str = Field(min_length=1, max_length=254)
     password: str
 
 
@@ -229,6 +254,10 @@ class AdminUserCreateInput(BaseModel):
     email: str = Field(min_length=5, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     password: str = Field(min_length=8, max_length=100)
     role: Literal["volunteer", "coordinator", "admin"]
+    phone: str = Field(default="", max_length=20)
+    organization: str = Field(default="", max_length=200)
+    job_title: str = Field(default="", max_length=100)
+    blood_group: str = Field(default="Chưa cập nhật")
 
 
 class AdminUserStatusInput(BaseModel):
@@ -282,6 +311,14 @@ def campaign_info(db: sqlite3.Connection, cid: int) -> dict[str, object] | None:
         return None
     result = dict(row)
     result["slots"] = [dict(item) for item in db.execute("""SELECT s.id,s.start_at,s.end_at,s.capacity,SUM(CASE WHEN a.status!='Đã hủy' THEN 1 ELSE 0 END) booked FROM slots s LEFT JOIN appointments a ON a.slot_id=s.id WHERE s.campaign_id=? GROUP BY s.id ORDER BY s.start_at""", (cid,))]
+    result["appointments"] = [dict(item) for item in db.execute("""
+        SELECT a.id, a.status, a.created_at, d.full_name, d.phone, d.email, d.blood_group, s.start_at, s.end_at
+        FROM appointments a
+        JOIN donors d ON d.id = a.donor_id
+        JOIN slots s ON s.id = a.slot_id
+        WHERE s.campaign_id = ?
+        ORDER BY s.start_at, a.created_at
+    """, (cid,))]
     return result
 
 
@@ -339,8 +376,13 @@ def register(data: RegisterInput) -> dict[str, str | int]:
 @app.post("/api/login")
 @app.post("/api/auth/login")
 def login(data: Login) -> dict[str, object]:
+    identifier = data.email.strip().lower()
+    canonical_identifier = LOGIN_ALIASES.get(identifier, identifier)
     with connect() as db:
-        row = db.execute("SELECT * FROM users WHERE username=?", (data.email.strip().lower(),)).fetchone()
+        row = db.execute(
+            "SELECT * FROM users WHERE lower(username)=? OR lower(email)=? OR lower(username)=? OR lower(email)=?",
+            (identifier, identifier, canonical_identifier, canonical_identifier),
+        ).fetchone()
     valid = bool(row and verify_password(data.password, row["password"]))
     if not valid:
         raise HTTPException(401, "Email hoặc mật khẩu không chính xác")
@@ -403,12 +445,22 @@ def donors(_: dict[str, str] = Depends(roles("admin", "coordinator"))) -> list[d
 
 @app.get("/api/donors/me")
 def my_donor(user: dict[str, str] = Depends(signed_in)) -> dict[str, object]:
-    if not user["donor_id"]:
-        raise HTTPException(404, "Tài khoản chưa liên kết hồ sơ người đăng ký")
     with connect() as db:
-        row = db.execute("SELECT * FROM donors WHERE id=?", (int(user["donor_id"]),)).fetchone()
+        donor_id = int(user["donor_id"]) if user.get("donor_id") else None
+        row = db.execute("SELECT * FROM donors WHERE id=?", (donor_id,)).fetchone() if donor_id else None
         if row is None:
-            raise HTTPException(404, "Không tìm thấy hồ sơ người đăng ký")
+            db.execute("BEGIN IMMEDIATE")
+            donor_id = db.execute(
+                "INSERT INTO donors(full_name,phone,email) VALUES (?,?,?)",
+                (user.get("display_name") or "Tình nguyện viên", "", user.get("email") or "")
+            ).lastrowid
+            db.execute("UPDATE users SET donor_id=? WHERE id=?", (donor_id, int(user["id"])))
+            db.commit()
+            user["donor_id"] = str(donor_id)
+            for session in SESSIONS.values():
+                if session.get("id") == user["id"]:
+                    session["donor_id"] = str(donor_id)
+            row = db.execute("SELECT * FROM donors WHERE id=?", (donor_id,)).fetchone()
         return dict(row)
 
 
@@ -485,8 +537,29 @@ def update_coordinator_profile(data: CoordinatorProfileUpdate, user: dict[str, s
 @app.get("/api/admin/users")
 def admin_list_users(_:dict[str,str]=Depends(roles("admin")))->list[dict[str,object]]:
     with connect() as db:
-        rows=db.execute("SELECT id,email,full_name,role,status,created_at FROM users ORDER BY datetime(created_at) DESC,id DESC").fetchall()
+        rows=db.execute("SELECT id,email,full_name,role,status,phone,blood_group,organization,job_title,created_at,donor_id FROM users ORDER BY datetime(created_at) DESC,id DESC").fetchall()
         return [dict(row) for row in rows]
+
+
+@app.get("/api/admin/users/{user_id}")
+def admin_get_user(user_id: int, _: dict[str, str] = Depends(roles("admin"))) -> dict[str, object]:
+    with connect() as db:
+        user_row = db.execute("SELECT id,username,email,full_name,role,status,phone,blood_group,birth_date,address,organization,job_title,created_at,donor_id FROM users WHERE id=?", (user_id,)).fetchone()
+        if user_row is None:
+            raise HTTPException(404, "Không tìm thấy tài khoản")
+        user_data = dict(user_row)
+        appointments = []
+        if user_data.get("donor_id"):
+            appointments = [dict(r) for r in db.execute("""
+                SELECT a.id, a.status, a.created_at, s.start_at, s.end_at, c.id campaign_id, c.title campaign_title, c.venue, c.campaign_date
+                FROM appointments a
+                JOIN slots s ON s.id = a.slot_id
+                JOIN campaigns c ON c.id = s.campaign_id
+                WHERE a.donor_id = ?
+                ORDER BY a.created_at DESC
+            """, (int(user_data["donor_id"]),))]
+        user_data["appointments"] = appointments
+        return user_data
 
 
 @app.post("/api/admin/users", status_code=201)
@@ -501,9 +574,15 @@ def admin_create_user(data: AdminUserCreateInput, _:dict[str,str]=Depends(roles(
             db.rollback()
             raise HTTPException(400,"Email already exists")
         now=db.execute("SELECT CURRENT_TIMESTAMP").fetchone()[0]
-        user_id=db.execute("INSERT INTO users(username,display_name,role,password,email,full_name,status,created_at) VALUES (?,?,?,?,?,?,'active',?)",(email,full_name,data.role,hash_password(data.password),email,full_name,now)).lastrowid
+        donor_id = None
+        if data.role == "volunteer":
+            donor_id = db.execute(
+                "INSERT INTO donors(full_name,phone,email,blood_group) VALUES (?,?,?,?)",
+                (full_name, data.phone.strip(), email, data.blood_group)
+            ).lastrowid
+        user_id=db.execute("INSERT INTO users(username,display_name,role,password,email,full_name,status,created_at,donor_id,phone,organization,job_title,blood_group) VALUES (?,?,?,?,?,?,'active',?,?,?,?,?,?)",(email,full_name,data.role,hash_password(data.password),email,full_name,now,donor_id,data.phone.strip(),data.organization.strip(),data.job_title.strip(),data.blood_group)).lastrowid
         db.commit()
-        row=db.execute("SELECT id,email,full_name,role,status,created_at FROM users WHERE id=?",(user_id,)).fetchone()
+        row=db.execute("SELECT id,email,full_name,role,status,phone,blood_group,organization,job_title,created_at FROM users WHERE id=?",(user_id,)).fetchone()
         return dict(row)
 
 
@@ -580,13 +659,24 @@ def campaigns(_: dict[str, str] = Depends(signed_in)) -> list[dict[str, object]]
     with connect() as db: return [campaign_info(db,r[0]) for r in db.execute("SELECT id FROM campaigns ORDER BY campaign_date")]
 
 
+@app.get("/api/campaigns/{cid}")
+def get_campaign(cid: int, _: dict[str, str] = Depends(signed_in)) -> dict[str, object]:
+    with connect() as db:
+        info = campaign_info(db, cid)
+        if info is None:
+            raise HTTPException(404, "Không tìm thấy chiến dịch")
+        return info
+
+
 @app.post("/api/campaigns", status_code=201)
-def add_campaign(data: CampaignInput, _: dict[str, str] = Depends(roles("admin","coordinator"))) -> dict[str, object]:
+def add_campaign(data: CampaignInput, user: dict[str, str] = Depends(roles("admin","coordinator"))) -> dict[str, object]:
     slots=slot_values(data)
     start_time=str(slots[0]["start_time"])
     end_time=str(slots[-1]["end_time"])
+    role_label = "Quản trị viên" if user.get("role") == "admin" else "Điều phối viên"
+    created_by = f"{role_label} ({user.get('email', '')})"
     with connect() as db:
-        cid=db.execute("INSERT INTO campaigns(title,venue,campaign_date,start_time,end_time,description,status) VALUES (?,?,?,?,?,?,?)",(data.title.strip(),data.venue.strip(),data.campaign_date.isoformat(),start_time,end_time,data.description.strip(),data.status)).lastrowid
+        cid=db.execute("INSERT INTO campaigns(title,venue,campaign_date,start_time,end_time,description,status,created_by) VALUES (?,?,?,?,?,?,?,?)",(data.title.strip(),data.venue.strip(),data.campaign_date.isoformat(),start_time,end_time,data.description.strip(),data.status,created_by)).lastrowid
         for slot in slots:
             db.execute("INSERT INTO slots(campaign_id,start_at,end_at,capacity) VALUES (?,?,?,?)",(cid,f"{data.campaign_date}T{slot['start_time']}",f"{data.campaign_date}T{slot['end_time']}",slot["capacity"]))
         return campaign_info(db,cid)

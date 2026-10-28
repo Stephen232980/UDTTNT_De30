@@ -19,7 +19,8 @@ Base URL local: `http://127.0.0.1:8000`. JSON endpoints dùng UTF-8 (`Content-Ty
 | POST | `/api/donors` | Admin/coordinator | Tạo donor; tùy chọn tạo volunteer login. 201; validation 422, conflict 409. |
 | POST | `/api/auth/change-password` | Bearer | `{current_password,new_password,confirm_password}`; kiểm tra mật khẩu hiện tại, lưu PBKDF2, thu hồi session khác; sai mật khẩu hiện tại 400, xác nhận lệch 422. |
 | GET | `/api/campaigns` | Bearer | Danh sách campaign kèm slots/booked. |
-| POST | `/api/campaigns` | Admin/coordinator | Tạo campaign và slots. 201; slot invalid/overlap 422. |
+| GET | `/api/campaigns/{cid}` | Bearer | Chi tiết một chiến dịch (thông tin chung, người tạo `created_by`, danh sách slots và danh sách đăng ký appointments). |
+| POST | `/api/campaigns` | Admin/coordinator | Tạo campaign và slots; tự động ghi nhận `created_by` theo tài khoản tạo (Quản trị viên / Điều phối viên). 201; slot invalid/overlap 422. |
 | PUT | `/api/campaigns/{cid}` | Admin/coordinator | Sửa campaign/slots; not found 404, slot đã đặt conflict 409. |
 | PATCH | `/api/campaigns/{cid}/status` | Admin/coordinator | Cập nhật status. |
 | DELETE | `/api/campaigns/{cid}` | Admin/coordinator | Xóa nếu chưa có appointment/notification; 204, 404/409. |
@@ -36,13 +37,15 @@ Base URL local: `http://127.0.0.1:8000`. JSON endpoints dùng UTF-8 (`Content-Ty
 | POST | `/api/ai/monthly-report` | Admin/coordinator | Body `{month,year}` (month 1 through 12; year 2000 through 2100). Trả số chiến dịch, lượt đăng ký, tỷ lệ hoàn thành chỉ tiêu, nhận xét và chế độ tạo. AI nhận số liệu chiến dịch và khung giờ tổng hợp, không nhận dữ liệu định danh tình nguyện viên. |
 | POST | `/api/ai/yearly-report` | Admin/coordinator | Body `{year}` (2000 through 2100). Trả số chiến dịch, tổng lượt đăng ký, tỷ lệ hoàn thành trung bình theo chiến dịch, thống kê 12 tháng và nhận xét xu hướng AI/fallback. Response dùng `application/json; charset=utf-8`; chỉ gửi số liệu tổng hợp, không gửi PII. |
 | POST | `/api/reminders` | Admin/coordinator | Body `{campaign_id,message}`. Records the supplied message for volunteers with registered appointments; message is limited to 2000 characters. Does not send SMS/email. |
-| GET | `/api/admin/users` | Admin | Danh sách tài khoản với `id,email,full_name,role,status,created_at`. |
+| GET | `/api/admin/users` | Admin | Danh sách tài khoản với `id,email,full_name,role,status,phone,blood_group,organization,job_title,created_at`. |
+| GET | `/api/admin/users/{user_id}` | Admin | Chi tiết tài khoản người dùng kèm lịch sử hẹn (với tình nguyện viên) hoặc đơn vị/chức vụ (với điều phối/quản trị). |
+| POST | `/api/admin/users` | Admin | Tạo tài khoản theo vai trò (`volunteer`, `coordinator`, `admin`) kèm các thông tin tùy chọn `phone`, `blood_group`, `organization`, `job_title`. |
 | PUT | `/api/admin/users/{user_id}/role` | Admin | Body `{role}`; role là `volunteer`, `coordinator` hoặc `admin`; 404 nếu không có user, 422 nếu role không hợp lệ. |
 | PUT | `/api/admin/users/{user_id}/status` | Admin | Body `{status}`; status là `active` hoặc `locked`; khóa tài khoản thu hồi session hiện có; admin không thể tự khóa. |
 | DELETE | `/api/admin/users/{user_id}` | Admin | Xóa tài khoản và thông báo gắn với user; 204 thành công, 400 nếu tự xóa, 404 không tồn tại, 409 nếu xóa admin cuối cùng. Hồ sơ donor và lịch sử appointment được giữ lại. |
 
 ## Data notes
-Login body: `{"email":"...","password":"..."}`. DB initialization seeds `admin@gmail.com` (role `admin`) and `dieuphoi@gmail.com` (role `coordinator`) using the local demo password `HienMau2026!`; change demo credentials before production. Register body: `email`, `password` (8-100 chars), `full_name`; optional legacy `role` input is ignored and new users always receive `volunteer`. The two system emails cannot register. Profile PUT body gồm `full_name`, `phone`, `blood_group`, `birth_date` (ISO date hoặc bỏ trống), `address`; email không được cập nhật. Coordinator profile body gồm `full_name`, `phone`, `organization`, `job_title`; email không được cập nhật. Change-password body: `current_password`, `new_password`, `confirm_password`; mật khẩu mới tối thiểu 8 ký tự, hash bằng PBKDF2 và thu hồi phiên đăng nhập khác. Notification `type` is `reminder` or `system`; inbox/read APIs chỉ tác động đến user đang đăng nhập. Campaign body gồm `title`, `venue`, `campaign_date`, `description`, `status`, và `slots` `{start_time,end_time,capacity,id?}`. Appointment status: `Đã đăng ký`, `Đã tham gia`, `Vắng mặt`, `Đã hủy`.
+Login body: `{"email":"...","password":"..."}`. DB initialization seeds `admin@machdo.com` (role `admin`) and `dieuphoi@machdo.com` (role `coordinator`) using the local demo password `HienMau2026!`; change demo credentials before production. Register body: `email`, `password` (8-100 chars), `full_name`; optional legacy `role` input is ignored and new users always receive `volunteer`. The two system emails cannot register. Profile PUT body gồm `full_name`, `phone`, `blood_group`, `birth_date` (ISO date hoặc bỏ trống), `address`; email không được cập nhật. Coordinator profile body gồm `full_name`, `phone`, `organization`, `job_title`; email không được cập nhật. Change-password body: `current_password`, `new_password`, `confirm_password`; mật khẩu mới tối thiểu 8 ký tự, hash bằng PBKDF2 và thu hồi phiên đăng nhập khác. Notification `type` is `reminder` or `system`; inbox/read APIs chỉ tác động đến user đang đăng nhập. Campaign body gồm `title`, `venue`, `campaign_date`, `description`, `status`, và `slots` `{start_time,end_time,capacity,id?}`. Appointment status: `Đã đăng ký`, `Đã tham gia`, `Vắng mặt`, `Đã hủy`.
 
 Swagger/OpenAPI UI mặc định tại `/docs`; OpenAPI JSON tại `/openapi.json`.
 
@@ -61,11 +64,12 @@ Requires `Authorization: Bearer <token>` for an admin account. Creates an active
 Request body:
 
 ```json
-{"full_name":"Nguyen Van An","email":"an@example.com","password":"InitialPass123","role":"volunteer"}
+{"full_name":"Nguyen Van An","email":"an@example.com","password":"InitialPass123","role":"volunteer","phone":"0987654321","blood_group":"O+","organization":"","job_title":""}
 ```
 
 `full_name` is 2-100 characters, `email` must have a valid email format and be at most 254 characters, `password` is 8-100 characters, and `role` is `volunteer`, `coordinator`, or `admin`.
 
-Success: HTTP 201 with `{ "id": 42, "email": "an@example.com", "full_name": "Nguyen Van An", "role": "volunteer", "status": "active", "created_at": "2026-09-27 12:00:00" }`. Password/hash are never returned.
+Success: HTTP 201 with `{ "id": 42, "email": "an@example.com", "full_name": "Nguyen Van An", "role": "volunteer", "status": "active", "phone": "0987654321", "blood_group": "O+", "created_at": "2026-09-27 12:00:00" }`. Password/hash are never returned.
 
 Errors: 401 when unauthenticated, 403 for a non-admin, 400 when the email already exists, and 422 for invalid fields or role.
+

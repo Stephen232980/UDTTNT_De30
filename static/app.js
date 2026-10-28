@@ -66,7 +66,7 @@ function loginView() {
       <div class="art-foot">Mạch Đỏ · Hệ thống quản lý hiến máu tình nguyện</div></aside>
     <section class="login-form-side"><div class="auth-container">
       <div id="login-view" class="auth-view active"><form class="login-form" id="login-form"><div class="brand login-mark"><span class="brand-mark">+</span>Mạch Đỏ</div><div class="eyebrow">Không gian điều phối</div><h2>Chào mừng trở lại</h2><p>Đăng nhập để tiếp tục điều phối những hành trình sẻ chia.</p>
-        <div class="field"><label for="login-email">Email</label><input id="login-email" name="email" type="email" autocomplete="email" placeholder="Ví dụ: email@gmail.com" required></div>
+        <div class="field"><label for="login-email">Email hoặc tên tài khoản</label><input id="login-email" name="email" type="text" autocomplete="username" placeholder="Ví dụ: admin@machdo.com hoặc admin" required></div>
         <div class="field"><label for="password">Mật khẩu</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu của bạn" required></div>
         <button class="button" style="width:100%;margin-top:9px" type="submit">Đăng nhập <span aria-hidden="true">→</span></button>
         <div class="auth-switch-text" style="text-align: center; margin-top: 16px; margin-bottom: 20px; font-size: 14px; color: #555;">Chưa có tài khoản? <a href="#" id="btn-show-register" class="auth-toggle-link" style="color: #D9383A; font-weight: 600; text-decoration: underline; margin-left: 4px;">Đăng ký ngay</a></div>
@@ -214,13 +214,13 @@ function metric(label, value, icon, foot) { return `<article class="metric"><div
 function dashboardView() {
     const data = state.dashboard || {};
     const dateToday = new Intl.DateTimeFormat("vi-VN", { month: "short" });
-    const campaignRows = (data.campaigns || []).slice(0, 4).map((event) => `<div class="event-row"><div class="date-block"><strong>${new Date(`${event.campaign_date}T00:00:00`).getDate()}</strong><small>${dateToday.format(new Date(`${event.campaign_date}T00:00:00`))}</small></div><div><div class="event-title">${esc(event.title)}</div><div class="event-sub">${esc(event.venue)} · ${event.start_time}–${event.end_time}</div></div><div class="seat-count">${event.slots.reduce((sum, slot) => sum + slot.booked, 0)} lượt hẹn</div></div>`).join("") || `<div class="empty">Chưa có chiến dịch nào.</div>`;
+    const campaignRows = (data.campaigns || []).slice(0, 4).map((event) => `<div class="event-row" data-action="view-campaign" data-campaign="${event.id}" style="cursor:pointer" title="Nhấn để xem chi tiết chiến dịch"><div class="date-block"><strong>${new Date(`${event.campaign_date}T00:00:00`).getDate()}</strong><small>${dateToday.format(new Date(`${event.campaign_date}T00:00:00`))}</small></div><div><div class="event-title">${esc(event.title)}</div><div class="event-sub">${esc(event.venue)} · ${event.start_time}–${event.end_time}</div></div><div class="seat-count">${event.slots.reduce((sum, slot) => sum + slot.booked, 0)} lượt hẹn</div></div>`).join("") || `<div class="empty">Chưa có chiến dịch nào.</div>`;
   const maxGroup = Math.max(1, ...(data.blood_groups || []).map((group) => group.value));
   const groupRows = (data.blood_groups || []).map((group) => `<div class="blood-line"><span class="blood-type">${esc(group.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(5, group.value / maxGroup * 100)}%"></div></div><span class="blood-num">${group.value}</span></div>`).join("");
   const recentRows = (data.recent || []).map((item) => `<tr><td><div class="person-cell"><span class="person-dot">${initials(item.full_name)}</span>${esc(item.full_name)}</div></td><td>${esc(item.campaign_title)}</td><td>${esc(item.blood_group)}</td><td>${statusPill(item.status)}</td></tr>`).join("");
   return `${heading("BẢNG ĐIỀU KHIỂN", `Xin chào, ${esc(state.user && state.user.display_name)}`, "Cùng xem nhịp đập của các chiến dịch hôm nay.")}
     <div class="metric-grid">${metric("Người đăng ký", data.total_donors ?? 0, "♙", "Hồ sơ trong hệ thống")}${metric("Lượt giữ chỗ", data.registrations ?? 0, "▦", `${data.attended ?? 0} lượt đã tham gia`)}${metric("Chiến dịch sắp tới", data.upcoming_campaigns ?? 0, "⌑", "Đang mở đăng ký")}${metric("Tỷ lệ tham gia", data.registrations ? `${Math.round(data.attended / data.registrations * 100)}%` : "0%", "↗", "Trên tổng lượt giữ chỗ")}</div>
-    <div class="dash-grid"><section class="section"><div class="section-head"><h2>Chiến dịch sắp diễn ra</h2><button class="button secondary small" data-page="campaigns">Xem tất cả →</button></div><div class="event-list">${campaignRows}</div></section>
+    <div class="dash-grid"><section class="section"><div class="section-head"><h2>Chiến dịch sắp diễn ra</h2><div style="display:flex;gap:8px;align-items:center;">${canManage() ? `<button class="button small" data-action="new-campaign">＋ Tạo chiến dịch</button>` : ""}<button class="button secondary small" data-page="campaigns">Xem tất cả →</button></div></div><div class="event-list">${campaignRows}</div></section>
     <section class="section"><div class="section-head"><h2>Phân bố nhóm máu</h2><span>Dữ liệu demo</span></div><div class="blood-list">${groupRows || `<div class="empty">Chưa có dữ liệu nhóm máu.</div>`}</div></section></div>
     <section class="section" style="margin-top:15px"><div class="section-head"><h2>Đăng ký gần đây</h2><button class="button secondary small" data-page="appointments">Mở danh sách →</button></div><div class="table-wrap"><table><thead><tr><th>NGƯỜI ĐĂNG KÝ</th><th>CHIẾN DỊCH</th><th>NHÓM MÁU</th><th>TRẠNG THÁI</th></tr></thead><tbody>${recentRows || `<tr><td colspan="4" class="empty">Chưa có lượt đăng ký nào.</td></tr>`}</tbody></table></div></section>`;
 }
@@ -232,10 +232,10 @@ function statusPill(value) {
 }
 
 function campaignsView() {
-  const cards = state.campaigns.map((event) => `<article class="campaign-item"><div class="campaign-topline"><div class="eyebrow">${prettyDate(event.campaign_date)}</div>${canManage() ? `<select class="campaign-status" data-campaign-status="${event.id}" aria-label="Trạng thái ${esc(event.title)}">${["Đang mở", "Tạm dừng", "Đã đóng"].map((status) => `<option ${event.status === status || (event.status === "Đã kết thúc" && status === "Đã đóng") ? "selected" : ""}>${status}</option>`).join("")}</select>` : `<span class="pill">${esc(event.status === "Đã kết thúc" ? "Đã đóng" : event.status)}</span>`}</div><h3>${esc(event.title)}</h3><div class="campaign-meta"><span>⌖ ${esc(event.venue)}</span><span>◷ ${event.start_time}–${event.end_time}</span></div><div class="slot-list">${event.slots.map((slot) => {
+  const cards = state.campaigns.map((event) => `<article class="campaign-item"><div class="campaign-topline"><div class="eyebrow">${prettyDate(event.campaign_date)}</div>${canManage() ? `<select class="campaign-status" data-campaign-status="${event.id}" aria-label="Trạng thái ${esc(event.title)}">${["Đang mở", "Tạm dừng", "Đã đóng"].map((status) => `<option ${event.status === status || (event.status === "Đã kết thúc" && status === "Đã đóng") ? "selected" : ""}>${status}</option>`).join("")}</select>` : `<span class="pill">${esc(event.status === "Đã kết thúc" ? "Đã đóng" : event.status)}</span>`}</div><h3>${esc(event.title)}</h3><div class="campaign-creator-pill" title="Người tạo chiến dịch"><span class="creator-icon">👤</span> Tạo bởi: <strong>${esc(event.created_by || "Điều phối viên (dieuphoi@machdo.com)")}</strong></div><div class="campaign-meta"><span>⌖ ${esc(event.venue)}</span><span>◷ ${event.start_time}–${event.end_time}</span></div><div class="slot-list">${event.slots.map((slot) => {
     const ratio = Math.min(100, slot.booked / slot.capacity * 100);
     return `<div class="slot-row"><div class="slot-left"><span>${slot.start_at.slice(11)}–${slot.end_at.slice(11)}</span><span class="slot-meter"><span style="width:${ratio}%"></span></span><span>${slot.booked}/${slot.capacity}</span></div><button class="button small" data-action="book" data-slot="${slot.id}" ${slot.booked >= slot.capacity || event.status !== "Đang mở" ? "disabled" : ""}>Đăng ký</button></div>`;
-  }).join("")}</div>${canManage() ? `<div class="campaign-actions"><button class="button secondary small" data-action="edit-campaign" data-campaign="${event.id}">Sửa chiến dịch</button><button class="button danger-quiet small" data-action="delete-campaign" data-campaign="${event.id}">Xóa</button></div>` : ""}</article>`).join("");
+  }).join("")}</div><div class="campaign-actions"><button class="button secondary small" data-action="view-campaign" data-campaign="${event.id}">👁️ Chi tiết</button>${canManage() ? `<button class="button secondary small" data-action="edit-campaign" data-campaign="${event.id}">Sửa</button><button class="button danger-quiet small" data-action="delete-campaign" data-campaign="${event.id}">Xóa</button>` : ""}</div></article>`).join("");
   return `${heading("ĐIỀU PHỐI", "Chiến dịch", "Quản lý điểm hiến, thời gian và sức chứa từng khung giờ.", canManage() ? `<button class="button" data-action="new-campaign">＋ Tạo chiến dịch</button>` : "")}
     <div class="campaign-grid">${cards || `<div class="section empty">Chưa có chiến dịch.</div>`}</div>`;
 }
@@ -259,7 +259,7 @@ function adminUsersView() {
     const isSelf = String(account.id) === currentId;
     const roleName = { volunteer: "Tình nguyện viên", coordinator: "Điều phối viên", admin: "Quản trị viên" }[account.role] || account.role;
     const statusName = account.status === "locked" ? "Đã khóa" : "Hoạt động";
-    return `<tr><td><div class="account-identity"><strong>${esc(account.full_name)}</strong><span>${esc(account.email)}</span></div></td><td><span class="role-badge role-${esc(account.role)}">${esc(roleName)}</span></td><td>${accountTimestamp(account.created_at)}</td><td><span class="account-status status-${esc(account.status)}"><i></i>${statusName}</span></td><td><div class="account-actions"><select data-user-role="${account.id}" aria-label="Vai trò của ${esc(account.full_name)}" ${isSelf ? "disabled" : ""}>${["volunteer", "coordinator", "admin"].map((role) => `<option value="${role}" ${account.role === role ? "selected" : ""}>${role}</option>`).join("")}</select><button class="button secondary small" data-action="account-status" data-user-id="${account.id}" data-status="${account.status === "locked" ? "active" : "locked"}" ${isSelf ? "disabled title=\"Không thể khóa tài khoản của bạn\"" : ""}>${account.status === "locked" ? "Mở khóa" : "Khóa"}</button><button class="button danger-quiet small" data-action="account-delete" data-user-id="${account.id}" data-user-name="${esc(account.full_name)}" ${isSelf ? "disabled title=\"Không thể xóa tài khoản của bạn\"" : ""}>Xóa</button></div></td></tr>`;
+    return `<tr><td><div class="account-identity"><strong>${esc(account.full_name)}</strong><span>${esc(account.email)}</span></div></td><td><span class="role-badge role-${esc(account.role)}">${esc(roleName)}</span></td><td>${accountTimestamp(account.created_at)}</td><td><span class="account-status status-${esc(account.status)}"><i></i>${statusName}</span></td><td><div class="account-actions"><button class="button secondary small" data-action="account-detail" data-user-id="${account.id}" title="Xem chi tiết tài khoản">👁️ Chi tiết</button><select data-user-role="${account.id}" aria-label="Vai trò của ${esc(account.full_name)}" ${isSelf ? "disabled" : ""}>${["volunteer", "coordinator", "admin"].map((role) => `<option value="${role}" ${account.role === role ? "selected" : ""}>${role}</option>`).join("")}</select><button class="button secondary small" data-action="account-status" data-user-id="${account.id}" data-status="${account.status === "locked" ? "active" : "locked"}" ${isSelf ? "disabled title=\"Không thể khóa tài khoản của bạn\"" : ""}>${account.status === "locked" ? "Mở khóa" : "Khóa"}</button><button class="button danger-quiet small" data-action="account-delete" data-user-id="${account.id}" data-user-name="${esc(account.full_name)}" ${isSelf ? "disabled title=\"Không thể xóa tài khoản của bạn\"" : ""}>Xóa</button></div></td></tr>`;
   }).join("");
   return `${heading("QUẢN TRỊ HỆ THỐNG", "Quản lý tài khoản", "Phân quyền và quản lý trạng thái tài khoản trong hệ thống.")}
     <section class="section"><div class="section-head account-section-head"><h2>Danh sách tài khoản</h2><div class="account-section-tools"><span>${state.accounts.length} tài khoản</span><button class="button" data-action="new-account">＋ Thêm tài khoản mới</button></div></div><div class="table-wrap"><table class="account-table"><thead><tr><th>HỌ TÊN &amp; EMAIL</th><th>VAI TRÒ</th><th>NGÀY GIỜ ĐĂNG KÝ</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="empty">Chưa có tài khoản nào.</td></tr>`}</tbody></table></div></section>`;
@@ -404,12 +404,13 @@ function renderAppointmentSearch(query, pos) {
   bindStatusControls();
 }
 
-function showModal(title, body) {
+function showModal(title, body, wide = false) {
   const dialog = document.querySelector("#modal");
   if (!dialog) {
     toast("Không tìm thấy vùng hiển thị biểu mẫu.");
     return false;
   }
+  dialog.classList.toggle("wide", Boolean(wide));
   dialog.innerHTML = `<div class="dialog-head"><h2>${title}</h2><button class="icon-button" data-close aria-label="Đóng">×</button></div>${body}`;
   dialog.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => dialog.close()));
   dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); }, { once: true });
@@ -537,6 +538,253 @@ function openCampaignEditor(event = null) {
   });
 }
 
+async function openCampaignDetails(campaignId) {
+  try {
+    const campaign = await api(`/api/campaigns/${campaignId}`);
+    const totalCapacity = (campaign.slots || []).reduce((sum, s) => sum + Number(s.capacity || 0), 0);
+    const totalBooked = (campaign.slots || []).reduce((sum, s) => sum + Number(s.booked || 0), 0);
+    const attendedCount = (campaign.appointments || []).filter((a) => a.status === "Đã tham gia").length;
+    const fillPercent = totalCapacity ? Math.min(100, Math.round(totalBooked / totalCapacity * 100)) : 0;
+    
+    const slotsHtml = (campaign.slots || []).map((slot, idx) => {
+      const ratio = slot.capacity ? Math.min(100, Math.round((slot.booked / slot.capacity) * 100)) : 0;
+      return `<div class="detail-slot-pill">
+        <div class="slot-time-title"><strong>Khung ${idx + 1}:</strong> ${slot.start_at.slice(11)} – ${slot.end_at.slice(11)}</div>
+        <div class="slot-meter-row">
+          <div class="slot-meter"><span style="width:${ratio}%"></span></div>
+          <span class="slot-meter-text">${slot.booked}/${slot.capacity}</span>
+        </div>
+      </div>`;
+    }).join("");
+
+    const participants = campaign.appointments || [];
+    const participantRows = participants.map((item, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>
+          <div class="person-cell">
+            <span class="person-dot">${initials(item.full_name)}</span>
+            <div>
+              <strong>${esc(item.full_name)}</strong>
+              <div style="font-size:12px;color:var(--muted)">${esc(item.phone || "—")} · ${esc(item.email || "—")}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="pill" style="font-weight:700">${esc(item.blood_group || "Chưa rõ")}</span></td>
+        <td>${item.start_at.slice(11)} – ${item.end_at.slice(11)}</td>
+        <td>${statusPill(item.status)}</td>
+      </tr>
+    `).join("");
+
+    const modalBody = `
+      <div class="campaign-detail-dialog">
+        <div class="campaign-detail-header">
+          <div class="campaign-detail-badges">
+            <span class="creator-badge">👤 Tạo bởi: <strong>${esc(campaign.created_by || "Điều phối viên (dieuphoi@machdo.com)")}</strong></span>
+            ${statusPill(campaign.status)}
+          </div>
+          <h2 class="campaign-detail-title">${esc(campaign.title)}</h2>
+          <p class="campaign-detail-desc">${esc(campaign.description || "Chưa có mô tả cho chiến dịch này.")}</p>
+        </div>
+
+        <div class="detail-info-grid">
+          <div class="detail-info-card">
+            <div class="info-label">📍 ĐỊA ĐIỂM TỔ CHỨC</div>
+            <div class="info-val">${esc(campaign.venue)}</div>
+          </div>
+          <div class="detail-info-card">
+            <div class="info-label">📅 NGÀY DIỄN RA</div>
+            <div class="info-val">${prettyDate(campaign.campaign_date)}</div>
+          </div>
+          <div class="detail-info-card">
+            <div class="info-label">⏰ THỜI GIAN</div>
+            <div class="info-val">${campaign.start_time} – ${campaign.end_time}</div>
+          </div>
+          <div class="detail-info-card">
+            <div class="info-label">📊 TIẾN ĐỘ ĐĂNG KÝ</div>
+            <div class="info-val">${totalBooked}/${totalCapacity} (${fillPercent}%) · ${attendedCount} đã tham gia</div>
+          </div>
+        </div>
+
+        <div class="detail-slots-section">
+          <h3>Các khung giờ tiếp nhận (${(campaign.slots || []).length} khung)</h3>
+          <div class="detail-slots-grid">${slotsHtml}</div>
+        </div>
+
+        <div class="detail-participants-section">
+          <div class="section-head" style="margin-bottom:10px">
+            <h3>Danh sách tình nguyện viên đã đăng ký (${participants.length})</h3>
+          </div>
+          <div class="table-wrap" style="max-height: 260px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>TÌNH NGUYỆN VIÊN</th>
+                  <th>NHÓM MÁU</th>
+                  <th>KHUNG GIỜ</th>
+                  <th>TRẠNG THÁI</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${participantRows || `<tr><td colspan="5" class="empty">Chưa có người đăng ký vào chiến dịch này.</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="dialog-actions" style="margin-top:20px;">
+          ${canManage() ? `<button type="button" class="button secondary" data-action="detail-edit-campaign">✏️ Sửa chiến dịch</button>` : ""}
+          <button type="button" class="button" data-close>Đóng</button>
+        </div>
+      </div>
+    `;
+
+    if (!showModal("Chi tiết chiến dịch", modalBody, true)) return;
+    const dialog = document.querySelector("#modal");
+    dialog?.querySelector("[data-action='detail-edit-campaign']")?.addEventListener("click", () => {
+      dialog.close();
+      openCampaignEditor(campaign);
+    });
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function openAccountDetails(userId) {
+  try {
+    const user = await api(`/api/admin/users/${userId}`);
+    const isSelf = String(user.id) === String(state.user.id);
+    const roleBadgeClass = `role-${esc(user.role)}`;
+    const roleLabel = { volunteer: "Tình nguyện viên", coordinator: "Điều phối viên", admin: "Quản trị viên" }[user.role] || user.role;
+    const statusLabel = user.status === "locked" ? "Đã khóa" : "Hoạt động";
+    const appointments = user.appointments || [];
+    
+    const appointmentRows = appointments.map((app, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>
+          <strong>${esc(app.campaign_title)}</strong>
+          <div style="font-size:12px;color:var(--muted)">📍 ${esc(app.venue)}</div>
+        </td>
+        <td>${prettyDate(app.campaign_date)}</td>
+        <td>${app.start_at.slice(11)} – ${app.end_at.slice(11)}</td>
+        <td>${statusPill(app.status)}</td>
+      </tr>
+    `).join("");
+
+    const roleSpecificInfo = user.role === "volunteer" ? `
+      <div class="detail-info-card">
+        <div class="info-label">🩸 NHÓM MÁU</div>
+        <div class="info-val"><span class="pill" style="font-weight:700">${esc(user.blood_group || "Chưa cập nhật")}</span></div>
+      </div>
+      <div class="detail-info-card">
+        <div class="info-label">🎂 NGÀY SINH</div>
+        <div class="info-val">${user.birth_date ? prettyDate(user.birth_date) : "Chưa cập nhật"}</div>
+      </div>
+      <div class="detail-info-card span-two">
+        <div class="info-label">🏠 ĐỊA CHỈ</div>
+        <div class="info-val">${esc(user.address || "Chưa cập nhật")}</div>
+      </div>
+    ` : `
+      <div class="detail-info-card">
+        <div class="info-label">🏢 ĐƠN VỊ CÔNG TÁC</div>
+        <div class="info-val">${esc(user.organization || "Chưa cập nhật")}</div>
+      </div>
+      <div class="detail-info-card">
+        <div class="info-label">💼 CHỨC VỤ</div>
+        <div class="info-val">${esc(user.job_title || "Chưa cập nhật")}</div>
+      </div>
+      <div class="detail-info-card span-two">
+        <div class="info-label">🏠 ĐỊA CHỈ</div>
+        <div class="info-val">${esc(user.address || "Chưa cập nhật")}</div>
+      </div>
+    `;
+
+    const volunteerHistorySection = user.role === "volunteer" ? `
+      <div class="detail-participants-section" style="margin-top:16px;">
+        <div class="section-head" style="margin-bottom:10px">
+          <h3>Lịch sử đăng ký hiến máu (${appointments.length} lượt hẹn)</h3>
+        </div>
+        <div class="table-wrap" style="max-height: 220px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>CHIẾN DỊCH</th>
+                <th>NGÀY</th>
+                <th>KHUNG GIỜ</th>
+                <th>TRẠNG THÁI</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${appointmentRows || `<tr><td colspan="5" class="empty">Chưa có lượt hẹn hiến máu nào.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ` : "";
+
+    const modalBody = `
+      <div class="user-detail-dialog">
+        <div class="user-detail-header">
+          <div class="person-cell" style="gap:14px;">
+            <span class="person-dot" style="width:50px;height:50px;font-size:18px;">${initials(user.full_name)}</span>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <h2 style="margin:0;font-size:20px;">${esc(user.full_name)}</h2>
+                <span class="role-badge ${roleBadgeClass}">${esc(roleLabel)}</span>
+                <span class="account-status status-${esc(user.status)}"><i></i>${statusLabel}</span>
+              </div>
+              <div style="color:var(--muted);font-size:13px;margin-top:4px;">${esc(user.email)} · ID #${user.id}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-info-grid" style="margin-top:16px;">
+          <div class="detail-info-card">
+            <div class="info-label">📞 SỐ ĐIỆN THOẠI</div>
+            <div class="info-val">${esc(user.phone || "Chưa cập nhật")}</div>
+          </div>
+          <div class="detail-info-card">
+            <div class="info-label">🕒 NGÀY TẠO TÀI KHOẢN</div>
+            <div class="info-val">${accountTimestamp(user.created_at)}</div>
+          </div>
+          ${roleSpecificInfo}
+        </div>
+
+        ${volunteerHistorySection}
+
+        <div class="dialog-actions" style="margin-top:20px;">
+          ${!isSelf ? `
+            <button class="button secondary" type="button" data-action="detail-toggle-status" data-status="${user.status === "locked" ? "active" : "locked"}">
+              ${user.status === "locked" ? "Mở khóa tài khoản" : "Khóa tài khoản"}
+            </button>
+          ` : ""}
+          <button type="button" class="button" data-close>Đóng</button>
+        </div>
+      </div>
+    `;
+
+    if (!showModal("Chi tiết tài khoản", modalBody, true)) return;
+    const dialog = document.querySelector("#modal");
+    dialog?.querySelector("[data-action='detail-toggle-status']")?.addEventListener("click", async (e) => {
+      const targetStatus = e.currentTarget.dataset.status;
+      try {
+        await api(`/api/admin/users/${user.id}/status`, { method: "PUT", body: JSON.stringify({ status: targetStatus }) });
+        dialog.close();
+        await loadData();
+        render();
+        toast(targetStatus === "locked" ? "Tài khoản đã được khóa." : "Tài khoản đã được mở khóa.");
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
 async function handleAction(action, button) {
   if (action === "logout") { try { await api("/api/auth/logout", { method: "POST" }); } catch {} state.token = null; state.user = null; state.avatarMenuOpen = false; state.notificationsOpen = false; clearSession(); render(); return; }
   if (action === "toggle-avatar-menu") { state.avatarMenuOpen = !state.avatarMenuOpen; state.notificationsOpen = false; render(); return; }
@@ -560,6 +808,14 @@ async function handleAction(action, button) {
     render();
     return;
   }
+  if (action === "view-campaign") {
+    await openCampaignDetails(Number(button.dataset.campaign));
+    return;
+  }
+  if (action === "account-detail") {
+    await openAccountDetails(Number(button.dataset.userId));
+    return;
+  }
   if (action === "new-donor") {
     if (!showModal("Thêm hồ sơ người đăng ký", donorForm())) return;
     const form = document.querySelector("#donor-form");
@@ -567,19 +823,93 @@ async function handleAction(action, button) {
     form.addEventListener("submit", async (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); if (!data.login_email) delete data.login_email; if (!data.login_password) delete data.login_password; try { const result = await api("/api/donors", { method: "POST", body: JSON.stringify(data) }); await loadData(); render(); toast(result.account_created ? "Đã tạo hồ sơ và tài khoản tình nguyện viên." : "Đã thêm hồ sơ người đăng ký."); } catch (error) { toast(error.message); } });
   }
   if (action === "new-account") {
-    const formBody = `<form id="admin-create-user-form" class="account-create-form"><div class="field"><label for="account-full-name">Họ và tên</label><input id="account-full-name" name="full_name" type="text" required minlength="2" maxlength="100" autocomplete="name"></div><div class="field"><label for="account-email">Email đăng nhập</label><input id="account-email" name="email" type="email" required maxlength="254" autocomplete="email"></div><div class="field"><label for="account-password">Mật khẩu khởi tạo</label><input id="account-password" name="password" type="password" required minlength="8" maxlength="100" autocomplete="new-password"></div><div class="field"><label for="account-role">Phân quyền vai trò</label><select id="account-role" name="role" required><option value="volunteer">🟢 Tình nguyện viên</option><option value="coordinator">🔵 Điều phối viên</option><option value="admin">🟣 Quản trị viên</option></select></div><div class="dialog-actions"><button type="button" class="button secondary" data-close>Hủy</button><button type="submit" class="button">Tạo tài khoản</button></div></form>`;
+    const formBody = `<form id="admin-create-user-form" class="account-create-form">
+      <div class="field">
+        <label for="account-role">Phân quyền vai trò</label>
+        <select id="account-role" name="role" required>
+          <option value="volunteer">🟢 Tình nguyện viên</option>
+          <option value="coordinator">🔵 Điều phối viên</option>
+          <option value="admin">🟣 Quản trị viên</option>
+        </select>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="account-full-name">Họ và tên</label>
+          <input id="account-full-name" name="full_name" type="text" required minlength="2" maxlength="100" autocomplete="name" placeholder="Ví dụ: Nguyễn Văn A">
+        </div>
+        <div class="field">
+          <label for="account-email">Email đăng nhập</label>
+          <input id="account-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="user@machdo.com">
+        </div>
+        <div class="field">
+          <label for="account-password">Mật khẩu khởi tạo</label>
+          <input id="account-password" name="password" type="password" required minlength="8" maxlength="100" autocomplete="new-password" placeholder="Tối thiểu 8 ký tự">
+        </div>
+        <div class="field">
+          <label for="account-phone">Số điện thoại</label>
+          <input id="account-phone" name="phone" type="tel" maxlength="20" placeholder="0901234567">
+        </div>
+        <div class="field span-two" id="account-blood-field">
+          <label for="account-blood-group">Nhóm máu</label>
+          <select id="account-blood-group" name="blood_group">
+            <option value="Chưa cập nhật">Chưa cập nhật</option>
+            <option value="A+">A+</option>
+            <option value="A-">A-</option>
+            <option value="B+">B+</option>
+            <option value="B-">B-</option>
+            <option value="AB+">AB+</option>
+            <option value="AB-">AB-</option>
+            <option value="O+">O+</option>
+            <option value="O-">O-</option>
+          </select>
+        </div>
+        <div class="field" id="account-org-field" style="display:none;">
+          <label for="account-organization">Đơn vị / Cơ sở công tác</label>
+          <input id="account-organization" name="organization" maxlength="200" placeholder="Bệnh viện / Hội Chữ thập đỏ">
+        </div>
+        <div class="field" id="account-job-field" style="display:none;">
+          <label for="account-job-title">Chức vụ</label>
+          <input id="account-job-title" name="job_title" maxlength="100" placeholder="Điều phối viên / Trưởng ban">
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="button secondary" data-close>Hủy</button>
+        <button type="submit" class="button">Tạo tài khoản</button>
+      </div>
+    </form>`;
     if (!showModal("Thêm tài khoản mới", formBody)) return;
     const form = document.querySelector("#admin-create-user-form");
+    const roleSelect = form?.querySelector("#account-role");
+    const bloodField = form?.querySelector("#account-blood-field");
+    const orgField = form?.querySelector("#account-org-field");
+    const jobField = form?.querySelector("#account-job-field");
+    const syncRoleFields = () => {
+      const role = roleSelect?.value;
+      if (role === "volunteer") {
+        if (bloodField) bloodField.style.display = "block";
+        if (orgField) orgField.style.display = "none";
+        if (jobField) jobField.style.display = "none";
+      } else {
+        if (bloodField) bloodField.style.display = "none";
+        if (orgField) orgField.style.display = "block";
+        if (jobField) jobField.style.display = "block";
+      }
+    };
+    roleSelect?.addEventListener("change", syncRoleFields);
+    syncRoleFields();
+
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const submit = form.querySelector("button[type='submit']");
-      submit.disabled = true;
+      if (submit) submit.disabled = true;
       try {
-        await api("/api/admin/users", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+        const payload = Object.fromEntries(new FormData(form));
+        await api("/api/admin/users", { method: "POST", body: JSON.stringify(payload) });
         document.querySelector("#modal")?.close();
-        await loadData(); render(); toast("Đã tạo tài khoản mới.");
-      } catch (error) { toast(error.message); submit.disabled = false; }
+        await loadData(); render(); toast(`Đã tạo tài khoản ${roleName(payload.role)} mới thành công.`);
+      } catch (error) { toast(error.message); if (submit) submit.disabled = false; }
     });
+    return;
   }
   if (action === "new-campaign") openCampaignEditor();
   if (action === "edit-campaign") openCampaignEditor(state.campaigns.find((event) => event.id === Number(button.dataset.campaign)));

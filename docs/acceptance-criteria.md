@@ -5,7 +5,7 @@ Mỗi tiêu chí dưới đây phản ánh hành vi được kiểm tra bởi te
 | AC | Given | When | Then | Automated test |
 |---|---|---|---|---|
 | AC-001 | Email chưa tồn tại và payload hợp lệ, kể cả gửi role `donor` | Đăng ký, sau đó đăng ký lại và đăng nhập | Lần đầu 201 với role `volunteer` và donor profile lưu email; lần hai 400 `Email đã tồn tại`; tài khoản đầu đăng nhập được | `test_register_account_and_reject_duplicate_email` |
-| AC-013 | Người chưa đăng nhập gửi đăng ký bằng `admin@gmail.com` hoặc `dieuphoi@gmail.com` | Gọi `/api/register` | Cả hai request bị từ chối 400; không tạo/tái sử dụng tài khoản hệ thống | `test_register_rejects_reserved_system_emails` |
+| AC-013 | Người chưa đăng nhập gửi đăng ký bằng `admin@machdo.com` hoặc `dieuphoi@machdo.com` | Gọi `/api/register` | Cả hai request bị từ chối 400; không tạo/tái sử dụng tài khoản hệ thống | `test_register_rejects_reserved_system_emails` |
 | AC-014 | DB mới hoặc đã khởi tạo trước đó | Khởi tạo DB lặp lại rồi đăng nhập bằng hai tài khoản hệ thống với mật khẩu demo | Mỗi email có đúng một account; admin nhận role `admin`, điều phối nhận `coordinator`; password được lưu dạng salt:digest PBKDF2 | `test_seeded_system_accounts_can_login_with_expected_roles` |
 | AC-002 | Một slot còn đúng một chỗ và hai donor khác nhau | Hai request đặt slot chạy đồng thời | Có đúng một 201, một 409 và một appointment được ghi | `test_slot_capacity_is_enforced_concurrently` |
 | AC-003 | Volunteer đã đăng nhập và API AI được mock để phát hiện gọi | Hỏi điều kiện khi đang uống thuốc | Trả lời chuyển nhân viên y tế; không gọi AI | `test_ai_fallback_refuses_personal_health_advice` |

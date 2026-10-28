@@ -34,7 +34,7 @@ AI là tiện ích hỗ trợ thông tin quy trình và diễn giải thống k�
 
 ## 2. Ma trận phân quyền và nguyên tắc truy cập (RBAC Matrix)
 
-Tài khoản seed hệ thống dùng email `admin@gmail.com` (admin) và `dieuphoi@gmail.com` (coordinator). Đây là địa chỉ tài khoản khởi tạo trong code, không phải cơ chế đảm bảo email đó luôn thuộc về cá nhân cụ thể. Admin có thể cấp lại vai trò. Đăng ký tự phục vụ tạo vai trò `volunteer`; model chấp nhận trường role legacy nhưng API không cho người đăng ký tự cấp quyền.
+Tài khoản seed hệ thống dùng email `admin@machdo.com` (admin) và `dieuphoi@machdo.com` (coordinator). Đây là địa chỉ tài khoản khởi tạo trong code, không phải cơ chế đảm bảo email đó luôn thuộc về cá nhân cụ thể. Admin có thể cấp lại vai trò. Đăng ký tự phục vụ tạo vai trò `volunteer`; model chấp nhận trường role legacy nhưng API không cho người đăng ký tự cấp quyền.
 
 | Khả năng | `volunteer` | `coordinator` | `admin` |
 |---|:---:|:---:|:---:|
@@ -149,7 +149,7 @@ Các test case dưới đây là tên hàm trong `test_app.py`. “—” có ng
 | RI-001 | API đăng ký luôn tạo `volunteer`, dù model còn chấp nhận role legacy `donor`; chưa có quyết định sản phẩm về role tự đăng ký. |
 | RI-002 | Retrieval AI hiện là keyword matching theo tiêu đề procedure; semantic/vector search chưa được triển khai. |
 | RI-003 | Nhắc lịch chỉ tạo bản ghi inbox; kênh SMS/email, consent, retry và nhà cung cấp chưa nằm trong phạm vi code. |
-| RI-004 | `admin@gmail.com` và `dieuphoi@gmail.com` là account seed; email cố định không chứng minh danh tính ngoài hệ thống. Quy trình cấp quyền production cần được quyết định. |
+| RI-004 | `admin@machdo.com` và `dieuphoi@machdo.com` là account seed; email cố định không chứng minh danh tính ngoài hệ thống. Quy trình cấp quyền production cần được quyết định. |
 | RI-005 | `DEMO_PASSWORD` và tài khoản demo chỉ phục vụ môi trường demo/local; cần quy trình secret và bootstrap an toàn cho production. |
 | RI-006 | Các yêu cầu về thời gian phản hồi <200 ms và 100% pytest pass là mục tiêu cần kiểm chứng; tài liệu không ghi nhận chúng đã đạt ở revision hiện tại. |
 

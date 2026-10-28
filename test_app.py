@@ -54,12 +54,17 @@ def test_seeded_system_accounts_can_login_with_expected_roles(tmp_path, monkeypa
             assert len(rows) == 1
             assert len(rows[0]["password"].split(":", 1)) == 2
 
+    for alias, expected_role in [("admin", "admin"), ("dieuphoi", "coordinator"), ("tinhnguyen", "volunteer"), ("admin@machdo.vn", "admin"), ("tinhnguyen@machdo.vn", "volunteer")]:
+        response = client.post("/api/auth/login", json={"email": alias, "password": main.DEMO_PASSWORD})
+        assert response.status_code == 200
+        assert response.json()["user"]["role"] == expected_role
+
 
 def test_donor_can_update_own_profile_but_not_login_email(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "DB_PATH", tmp_path / "profile.db")
     main.initialize_database()
     client = TestClient(main.app)
-    login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).json()
+    login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).json()
     headers = {"Authorization": f"Bearer {login['token']}"}
 
     blank_name = client.put("/api/donors/me", headers=headers, json={"full_name": "  "})
@@ -81,7 +86,7 @@ def test_donor_can_update_own_profile_but_not_login_email(tmp_path, monkeypatch)
     assert updated.json()["address"] == "Thành phố Thái Nguyên"
     assert client.get("/api/donors/me", headers=headers).json()["full_name"] == "Nguyễn Tình Nguyện"
 
-    refreshed_login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD})
+    refreshed_login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD})
     assert refreshed_login.json()["user"]["display_name"] == "Nguyễn Tình Nguyện"
     assert client.put("/api/donors/me", json=updated.json()).status_code == 401
 
@@ -90,12 +95,12 @@ def test_system_user_can_update_own_profile_without_donor(tmp_path, monkeypatch)
     monkeypatch.setattr(main, "DB_PATH", tmp_path / "system-profile.db")
     main.initialize_database()
     client = TestClient(main.app)
-    login = client.post("/api/auth/login", json={"email": "admin@gmail.com", "password": main.DEMO_PASSWORD}).json()
+    login = client.post("/api/auth/login", json={"email": "admin@machdo.com", "password": main.DEMO_PASSWORD}).json()
     headers = {"Authorization": f"Bearer {login['token']}"}
 
     profile = client.get("/api/users/me", headers=headers)
     assert profile.status_code == 200
-    assert profile.json()["email"] == "admin@gmail.com"
+    assert profile.json()["email"] == "admin@machdo.com"
     assert profile.json()["full_name"] == "Quản trị viên"
     updated = client.put("/api/users/me", headers=headers, json={
         "full_name": "Quản trị viên thử nghiệm",
@@ -105,10 +110,10 @@ def test_system_user_can_update_own_profile_without_donor(tmp_path, monkeypatch)
         "address": "Thái Nguyên",
     })
     assert updated.status_code == 200
-    assert updated.json()["email"] == "admin@gmail.com"
+    assert updated.json()["email"] == "admin@machdo.com"
     assert updated.json()["full_name"] == "Quản trị viên thử nghiệm"
     assert updated.json()["birth_date"] == "1988-11-02"
-    assert client.post("/api/auth/login", json={"email": "admin@gmail.com", "password": main.DEMO_PASSWORD}).json()["user"]["display_name"] == "Quản trị viên thử nghiệm"
+    assert client.post("/api/auth/login", json={"email": "admin@machdo.com", "password": main.DEMO_PASSWORD}).json()["user"]["display_name"] == "Quản trị viên thử nghiệm"
 
 
 def test_coordinator_can_update_profile_and_change_password(tmp_path, monkeypatch):
@@ -116,14 +121,14 @@ def test_coordinator_can_update_profile_and_change_password(tmp_path, monkeypatc
     main.SESSIONS.clear()
     main.initialize_database()
     client = TestClient(main.app)
-    login = client.post("/api/auth/login", json={"email": "dieuphoi@gmail.com", "password": main.DEMO_PASSWORD}).json()
+    login = client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD}).json()
     headers = {"Authorization": f"Bearer {login['token']}"}
 
     initial = client.get("/api/coordinators/me", headers=headers)
     assert initial.status_code == 200
-    assert initial.json()["email"] == "dieuphoi@gmail.com"
+    assert initial.json()["email"] == "dieuphoi@machdo.com"
     assert client.get("/api/coordinators/me").status_code == 401
-    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).json()
+    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).json()
     assert client.get("/api/coordinators/me", headers={"Authorization": f"Bearer {volunteer['token']}"}).status_code == 403
 
     updated = client.put("/api/coordinators/me", headers=headers, json={
@@ -135,15 +140,15 @@ def test_coordinator_can_update_profile_and_change_password(tmp_path, monkeypatc
     })
     assert updated.status_code == 200
     assert updated.json()["full_name"] == "Điều phối viên ICTU"
-    assert updated.json()["email"] == "dieuphoi@gmail.com"
+    assert updated.json()["email"] == "dieuphoi@machdo.com"
     assert updated.json()["organization"] == "Bệnh viện Trung ương"
     assert updated.json()["job_title"] == "Điều phối trưởng"
     assert client.get("/api/users/me", headers=headers).json()["job_title"] == "Điều phối trưởng"
 
     change = {"current_password": main.DEMO_PASSWORD, "new_password": "CoordinatorPass456", "confirm_password": "CoordinatorPass456"}
     assert client.post("/api/auth/change-password", headers=headers, json=change).status_code == 200
-    assert client.post("/api/auth/login", json={"email": "dieuphoi@gmail.com", "password": main.DEMO_PASSWORD}).status_code == 401
-    assert client.post("/api/auth/login", json={"email": "dieuphoi@gmail.com", "password": "CoordinatorPass456"}).status_code == 200
+    assert client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD}).status_code == 401
+    assert client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": "CoordinatorPass456"}).status_code == 200
 
 
 def test_change_password_validates_and_stores_pbkdf2_hash(tmp_path, monkeypatch):
@@ -151,8 +156,8 @@ def test_change_password_validates_and_stores_pbkdf2_hash(tmp_path, monkeypatch)
     main.SESSIONS.clear()
     main.initialize_database()
     client = TestClient(main.app)
-    login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).json()
-    other_session = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).json()
+    login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).json()
+    other_session = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).json()
     headers = {"Authorization": f"Bearer {login['token']}"}
     other_headers = {"Authorization": f"Bearer {other_session['token']}"}
     payload = {"current_password": main.DEMO_PASSWORD, "new_password": "NewSecurePass456", "confirm_password": "NewSecurePass456"}
@@ -168,11 +173,11 @@ def test_change_password_validates_and_stores_pbkdf2_hash(tmp_path, monkeypatch)
     assert changed.json() == {"ok": True}
     assert client.get("/api/donors/me", headers=headers).status_code == 200
     assert client.get("/api/donors/me", headers=other_headers).status_code == 401
-    assert client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).status_code == 401
-    new_login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": "NewSecurePass456"})
+    assert client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).status_code == 401
+    new_login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": "NewSecurePass456"})
     assert new_login.status_code == 200
     with main.connect() as db:
-        encoded = db.execute("SELECT password FROM users WHERE username='tinhnguyen@machdo.vn'").fetchone()["password"]
+        encoded = db.execute("SELECT password FROM users WHERE username='tinhnguyen@machdo.com'").fetchone()["password"]
     assert encoded != "NewSecurePass456"
     assert main.verify_password("NewSecurePass456", encoded)
 
@@ -201,7 +206,7 @@ def test_slot_capacity_is_enforced_concurrently(tmp_path, monkeypatch):
         cid = db.execute("INSERT INTO campaigns(title,venue,campaign_date,start_time,end_time) VALUES ('Test','Hall','2026-10-01','08:00','09:00')").lastrowid
         slot = db.execute("INSERT INTO slots(campaign_id,start_at,end_at,capacity) VALUES (?,'2026-10-01T08:00','2026-10-01T09:00',1)",(cid,)).lastrowid
         donors = [db.execute("INSERT INTO donors(full_name,phone) VALUES (?,?)",(f"Donor {i}",f"090000000{i}")).lastrowid for i in range(2)]
-    token = TestClient(main.app).post("/api/auth/login",json={"email":"admin@gmail.com","password":main.DEMO_PASSWORD}).json()["token"]
+    token = TestClient(main.app).post("/api/auth/login",json={"email":"admin@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     headers = {"Authorization":f"Bearer {token}"}
 
     def book(donor):
@@ -221,7 +226,7 @@ def test_ai_fallback_refuses_personal_health_advice(tmp_path, monkeypatch):
     monkeypatch.setattr(main,"ai_call",lambda *_: (_ for _ in ()).throw(AssertionError("personal health question sent to AI")))
     main.initialize_database()
     client=TestClient(main.app)
-    token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.vn","password":main.DEMO_PASSWORD}).json()["token"]
+    token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     response=client.post("/api/chat",json={"question":"Tôi đang uống thuốc, có đủ điều kiện hiến máu không?"},headers={"Authorization":f"Bearer {token}"})
     assert response.status_code == 200
     assert "không thể đánh giá sức khỏe" in response.json()["text"]
@@ -241,8 +246,8 @@ def test_reminder_is_recorded_once_without_external_delivery(tmp_path, monkeypat
     monkeypatch.setattr(main,"ai_call",lambda system,prompt: prompts.append(prompt) or "Hẹn gặp bạn tại ngày hội hiến máu!")
     main.initialize_database()
     client=TestClient(main.app)
-    token=client.post("/api/auth/login",json={"email":"dieuphoi@gmail.com","password":main.DEMO_PASSWORD}).json()["token"]
-    volunteer_token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.vn","password":main.DEMO_PASSWORD}).json()["token"]
+    token=client.post("/api/auth/login",json={"email":"dieuphoi@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
+    volunteer_token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     headers={"Authorization":f"Bearer {token}"}
     with main.connect() as db:
         donor=db.execute("SELECT id FROM donors LIMIT 1").fetchone()[0]
@@ -269,7 +274,7 @@ def test_notifications_generate_upcoming_reminders_once_and_enforce_user_scope(t
     main.SESSIONS.clear()
     main.initialize_database()
     client=TestClient(main.app)
-    owner_login=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.vn","password":main.DEMO_PASSWORD}).json()
+    owner_login=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.com","password":main.DEMO_PASSWORD}).json()
     owner_headers={"Authorization":f"Bearer {owner_login['token']}"}
     with main.connect() as db:
         donor_id=int(owner_login["user"]["donor_id"])
@@ -312,7 +317,7 @@ def test_initialize_migrates_legacy_notification_rows(tmp_path, monkeypatch):
     main.initialize_database()
     with main.connect() as db:
         notification=db.execute("SELECT * FROM notifications WHERE id=1").fetchone()
-        volunteer=db.execute("SELECT id FROM users WHERE username='tinhnguyen@machdo.vn'").fetchone()
+        volunteer=db.execute("SELECT id FROM users WHERE username='tinhnguyen@machdo.com'").fetchone()
         assert notification["user_id"] == volunteer["id"]
         assert notification["title"]
         assert notification["message"] == "Lời nhắc cũ"
@@ -325,8 +330,8 @@ def test_campaign_schedule_changes_notify_booked_volunteers(tmp_path, monkeypatc
     monkeypatch.setattr(main,"DB_PATH",tmp_path/"schedule-notifications.db")
     main.initialize_database()
     client=TestClient(main.app)
-    coordinator=client.post("/api/auth/login",json={"email":"dieuphoi@gmail.com","password":main.DEMO_PASSWORD}).json()["token"]
-    volunteer=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.vn","password":main.DEMO_PASSWORD}).json()
+    coordinator=client.post("/api/auth/login",json={"email":"dieuphoi@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
+    volunteer=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.com","password":main.DEMO_PASSWORD}).json()
     manager_headers={"Authorization":f"Bearer {coordinator}"}
     volunteer_headers={"Authorization":f"Bearer {volunteer['token']}"}
     with main.connect() as db:
@@ -353,7 +358,7 @@ def test_volunteer_only_sees_and_books_their_own_donor_record(tmp_path, monkeypa
     monkeypatch.setattr(main,"DB_PATH",tmp_path/"volunteer.db")
     main.initialize_database()
     client=TestClient(main.app)
-    token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.vn","password":main.DEMO_PASSWORD}).json()["token"]
+    token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     headers={"Authorization":f"Bearer {token}"}
     assert client.get("/api/donors",headers=headers).status_code == 403
     own_donor=client.get("/api/donors/me",headers=headers).json()
@@ -371,7 +376,7 @@ def test_logout_revokes_session_token(tmp_path, monkeypatch):
     monkeypatch.setattr(main,"DB_PATH",tmp_path/"logout.db")
     main.initialize_database()
     client=TestClient(main.app)
-    token=client.post("/api/auth/login",json={"email":"admin@gmail.com","password":main.DEMO_PASSWORD}).json()["token"]
+    token=client.post("/api/auth/login",json={"email":"admin@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     headers={"Authorization":f"Bearer {token}"}
     assert client.post("/api/auth/logout",headers=headers).status_code == 200
     assert client.get("/api/dashboard",headers=headers).status_code == 401
@@ -382,7 +387,7 @@ def test_procedure_chat_uses_approved_document_fallback(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY",raising=False)
     main.initialize_database()
     client=TestClient(main.app)
-    token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.vn","password":main.DEMO_PASSWORD}).json()["token"]
+    token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     response=client.post("/api/chat",json={"question":"Sau khi hiến máu cần làm gì?"},headers={"Authorization":f"Bearer {token}"})
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json; charset=utf-8"
@@ -399,7 +404,7 @@ def test_procedure_chat_retrieves_relevant_approved_documents(tmp_path, monkeypa
     monkeypatch.setattr(main,"ai_call",lambda system,prompt: prompts.append(system) or "Đã truy xuất tài liệu phù hợp.")
     main.initialize_database()
     client=TestClient(main.app)
-    token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.vn","password":main.DEMO_PASSWORD}).json()["token"]
+    token=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     headers={"Authorization":f"Bearer {token}"}
     answer=client.post("/api/chat",headers=headers,json={"question":"Sau khi hiến máu cần làm gì?"})
     unknown=client.post("/api/chat",headers=headers,json={"question":"Thủ tục đổi số điện thoại ở đâu?"})
@@ -416,7 +421,7 @@ def test_admin_can_create_donor_and_link_volunteer_account(tmp_path, monkeypatch
     monkeypatch.setattr(main,"DB_PATH",tmp_path/"account.db")
     main.initialize_database()
     client=TestClient(main.app)
-    admin=client.post("/api/auth/login",json={"email":"admin@gmail.com","password":main.DEMO_PASSWORD}).json()["token"]
+    admin=client.post("/api/auth/login",json={"email":"admin@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     response=client.post("/api/donors",headers={"Authorization":f"Bearer {admin}"},json={
         "full_name":"Demo Volunteer","phone":"0900000011","email":"demo@example.vn","blood_group":"A+",
         "login_email":"demo-volunteer@example.com","login_password":"DemoPass123"
@@ -435,7 +440,7 @@ def test_campaign_custom_slots_edit_status_and_safe_delete(tmp_path, monkeypatch
     monkeypatch.setattr(main,"DB_PATH",tmp_path/"campaigns.db")
     main.initialize_database()
     client=TestClient(main.app)
-    token=client.post("/api/auth/login",json={"email":"dieuphoi@gmail.com","password":main.DEMO_PASSWORD}).json()["token"]
+    token=client.post("/api/auth/login",json={"email":"dieuphoi@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     headers={"Authorization":f"Bearer {token}"}
     payload={"title":"Sẻ chia","venue":"Nhà văn hóa","campaign_date":"2026-10-20","description":"Ngày hội cộng đồng","slots":[
         {"start_time":"08:30","end_time":"09:30","capacity":2},
@@ -467,8 +472,8 @@ def test_campaign_with_bookings_cannot_remove_slot_or_be_deleted(tmp_path, monke
     monkeypatch.setattr(main,"DB_PATH",tmp_path/"booked-campaign.db")
     main.initialize_database()
     client=TestClient(main.app)
-    admin=client.post("/api/auth/login",json={"email":"admin@gmail.com","password":main.DEMO_PASSWORD}).json()["token"]
-    volunteer=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.vn","password":main.DEMO_PASSWORD}).json()["token"]
+    admin=client.post("/api/auth/login",json={"email":"admin@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
+    volunteer=client.post("/api/auth/login",json={"email":"tinhnguyen@machdo.com","password":main.DEMO_PASSWORD}).json()["token"]
     admin_headers={"Authorization":f"Bearer {admin}"}
     volunteer_headers={"Authorization":f"Bearer {volunteer}"}
     payload={"title":"Booked","venue":"Hall","campaign_date":"2026-10-21","slots":[{"start_time":"08:00","end_time":"09:00","capacity":2}]}
@@ -490,7 +495,7 @@ def test_ai_monthly_report_returns_campaign_statistics(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "ai_call", lambda system, prompt: "Tháng 9 có hoạt động tích cực.")
     main.initialize_database()
     client = TestClient(main.app)
-    token = client.post("/api/auth/login", json={"email": "dieuphoi@gmail.com", "password": main.DEMO_PASSWORD}).json()["token"]
+    token = client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD}).json()["token"]
     headers = {"Authorization": f"Bearer {token}"}
     with main.connect() as db:
         cid = db.execute("INSERT INTO campaigns(title,venue,campaign_date,start_time,end_time) VALUES ('Tháng chín','Nhà văn hóa','2050-09-12','08:00','10:00')").lastrowid
@@ -515,8 +520,8 @@ def test_custom_reminder_message_is_recorded_for_campaign_volunteers(tmp_path, m
     main.SESSIONS.clear()
     main.initialize_database()
     client = TestClient(main.app)
-    coordinator = client.post("/api/auth/login", json={"email": "dieuphoi@gmail.com", "password": main.DEMO_PASSWORD}).json()["token"]
-    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).json()
+    coordinator = client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD}).json()["token"]
+    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).json()
     with main.connect() as db:
         campaign = db.execute("SELECT id,title FROM campaigns LIMIT 1").fetchone()
         slot = db.execute("SELECT id FROM slots WHERE campaign_id=? LIMIT 1", (campaign["id"],)).fetchone()[0]
@@ -535,14 +540,14 @@ def test_admin_can_list_update_lock_unlock_and_delete_accounts(tmp_path, monkeyp
     main.SESSIONS.clear()
     main.initialize_database()
     client = TestClient(main.app)
-    admin = client.post("/api/auth/login", json={"email": "admin@gmail.com", "password": main.DEMO_PASSWORD}).json()
-    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).json()
+    admin = client.post("/api/auth/login", json={"email": "admin@machdo.com", "password": main.DEMO_PASSWORD}).json()
+    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).json()
     admin_headers = {"Authorization": f"Bearer {admin['token']}"}
     volunteer_headers = {"Authorization": f"Bearer {volunteer['token']}"}
 
     listed = client.get("/api/admin/users", headers=admin_headers)
     assert listed.status_code == 200
-    account = next(item for item in listed.json() if item["email"] == "tinhnguyen@machdo.vn")
+    account = next(item for item in listed.json() if item["email"] == "tinhnguyen@machdo.com")
     assert {"id", "email", "full_name", "role", "status", "created_at"} <= account.keys()
     assert account["role"] == "volunteer"
     assert account["status"] == "active"
@@ -557,9 +562,9 @@ def test_admin_can_list_update_lock_unlock_and_delete_accounts(tmp_path, monkeyp
     assert locked.status_code == 200
     assert locked.json()["status"] == "locked"
     assert client.get("/api/campaigns", headers=volunteer_headers).status_code == 401
-    assert client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).status_code == 403
+    assert client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).status_code == 403
     assert client.put(f"/api/admin/users/{account['id']}/status", headers=admin_headers, json={"status": "active"}).json()["status"] == "active"
-    assert client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).status_code == 200
+    assert client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).status_code == 200
 
     assert client.put(f"/api/admin/users/{admin['user']['id']}/status", headers=admin_headers, json={"status": "locked"}).status_code == 400
     assert client.delete(f"/api/admin/users/{admin['user']['id']}", headers=admin_headers).status_code == 400
@@ -573,8 +578,8 @@ def test_admin_user_management_endpoints_reject_non_admin_roles(tmp_path, monkey
     main.SESSIONS.clear()
     main.initialize_database()
     client = TestClient(main.app)
-    coordinator = client.post("/api/auth/login", json={"email": "dieuphoi@gmail.com", "password": main.DEMO_PASSWORD}).json()
-    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).json()
+    coordinator = client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD}).json()
+    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).json()
     target = volunteer["user"]["id"]
     for login in (coordinator, volunteer):
         headers = {"Authorization": f"Bearer {login['token']}"}
@@ -589,7 +594,7 @@ def test_admin_can_create_all_account_roles_with_hashed_password(tmp_path, monke
     main.SESSIONS.clear()
     main.initialize_database()
     client = TestClient(main.app)
-    admin = client.post("/api/auth/login", json={"email": "admin@gmail.com", "password": main.DEMO_PASSWORD}).json()
+    admin = client.post("/api/auth/login", json={"email": "admin@machdo.com", "password": main.DEMO_PASSWORD}).json()
     headers = {"Authorization": f"Bearer {admin['token']}"}
     for role in ("volunteer", "coordinator", "admin"):
         payload = {"full_name": f"New {role}", "email": f"new-{role}@example.com", "password": "InitialPass123", "role": role}
@@ -614,7 +619,7 @@ def test_admin_create_user_rejects_non_admin_and_unauthenticated(tmp_path, monke
     client = TestClient(main.app)
     payload = {"full_name": "New Account", "email": "new-account@example.com", "password": "InitialPass123", "role": "volunteer"}
     assert client.post("/api/admin/users", json=payload).status_code == 401
-    for email in ("dieuphoi@gmail.com", "tinhnguyen@machdo.vn"):
+    for email in ("dieuphoi@machdo.com", "tinhnguyen@machdo.com"):
         login = client.post("/api/auth/login", json={"email": email, "password": main.DEMO_PASSWORD}).json()
         response = client.post("/api/admin/users", headers={"Authorization": f"Bearer {login['token']}"}, json=payload)
         assert response.status_code == 403
@@ -626,8 +631,8 @@ def test_ai_campaign_summary_reports_counts_and_requires_manager_role(tmp_path, 
     monkeypatch.setattr(main, "ai_call", lambda system, prompt: "AI summary from campaign figures.")
     main.initialize_database()
     client = TestClient(main.app)
-    coordinator = client.post("/api/auth/login", json={"email": "dieuphoi@gmail.com", "password": main.DEMO_PASSWORD}).json()
-    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.vn", "password": main.DEMO_PASSWORD}).json()
+    coordinator = client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD}).json()
+    volunteer = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD}).json()
     headers = {"Authorization": f"Bearer {coordinator['token']}"}
     with main.connect() as db:
         campaign_id = db.execute("INSERT INTO campaigns(title,venue,campaign_date,start_time,end_time) VALUES ('Summary campaign','Hall','2050-09-12','08:00','10:00')").lastrowid
@@ -658,7 +663,7 @@ def test_ai_yearly_report_returns_annual_and_monthly_statistics_as_utf8(tmp_path
     monkeypatch.setattr(main, "ai_call", lambda system, prompt: "Annual trend report.")
     main.initialize_database()
     client = TestClient(main.app)
-    coordinator = client.post("/api/auth/login", json={"email": "dieuphoi@gmail.com", "password": main.DEMO_PASSWORD}).json()
+    coordinator = client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD}).json()
     headers = {"Authorization": f"Bearer {coordinator['token']}"}
     with main.connect() as db:
         campaign_ids = []
@@ -696,3 +701,108 @@ def test_ai_views_have_separate_routes_and_containers():
     assert 'data-action="yearly-report"' in source
     assert '<meta charset="utf-8">' in html
     assert 'app.js?v=2.3' in html
+
+
+def test_admin_and_coordinator_campaign_creation_and_details(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "DB_PATH", tmp_path / "campaign_details.db")
+    main.initialize_database()
+    client = TestClient(main.app)
+
+    admin_login = client.post("/api/auth/login", json={"email": "admin@machdo.com", "password": main.DEMO_PASSWORD}).json()
+    admin_headers = {"Authorization": f"Bearer {admin_login['token']}"}
+
+    coord_login = client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD}).json()
+    coord_headers = {"Authorization": f"Bearer {coord_login['token']}"}
+
+    # Coordinator creates a campaign
+    coord_res = client.post("/api/campaigns", headers=coord_headers, json={
+        "title": "Chiến dịch Điều phối viên tạo",
+        "venue": "Nhà Văn hóa TP",
+        "campaign_date": "2026-11-20",
+        "description": "Chiến dịch hiến máu do điều phối viên khởi xướng",
+        "slots": [{"start_time": "08:00", "end_time": "09:00", "capacity": 30}],
+        "status": "Đang mở"
+    })
+    assert coord_res.status_code == 201
+    coord_cid = coord_res.json()["id"]
+    assert "Điều phối viên" in coord_res.json()["created_by"]
+    assert "dieuphoi@machdo.com" in coord_res.json()["created_by"]
+
+    # Admin creates a campaign
+    admin_res = client.post("/api/campaigns", headers=admin_headers, json={
+        "title": "Chiến dịch Quản trị viên tạo",
+        "venue": "Trung tâm Y tế quận",
+        "campaign_date": "2026-11-25",
+        "description": "Chiến dịch hiến máu do admin trực tiếp tạo",
+        "slots": [{"start_time": "09:00", "end_time": "10:00", "capacity": 50}],
+        "status": "Đang mở"
+    })
+    assert admin_res.status_code == 201
+    admin_cid = admin_res.json()["id"]
+    assert "Quản trị viên" in admin_res.json()["created_by"]
+    assert "admin@machdo.com" in admin_res.json()["created_by"]
+
+    # Admin views Coordinator's campaign details via GET /api/campaigns/{cid}
+    detail_res = client.get(f"/api/campaigns/{coord_cid}", headers=admin_headers)
+    assert detail_res.status_code == 200
+    detail = detail_res.json()
+    assert detail["title"] == "Chiến dịch Điều phối viên tạo"
+    assert "Điều phối viên" in detail["created_by"]
+    assert len(detail["slots"]) == 1
+    assert "appointments" in detail
+
+
+def test_admin_creates_user_by_role_and_views_account_details(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "DB_PATH", tmp_path / "admin_user_mgmt.db")
+    main.initialize_database()
+    client = TestClient(main.app)
+
+    admin_login = client.post("/api/auth/login", json={"email": "admin@machdo.com", "password": main.DEMO_PASSWORD}).json()
+    admin_headers = {"Authorization": f"Bearer {admin_login['token']}"}
+
+    # Admin creates volunteer
+    v_res = client.post("/api/admin/users", headers=admin_headers, json={
+        "email": "tnv_test@example.com",
+        "password": "Password123!",
+        "full_name": "Tình Nguyện Viên Mới",
+        "role": "volunteer",
+        "phone": "0987654321",
+        "blood_group": "AB+"
+    })
+    assert v_res.status_code == 201
+    v_id = v_res.json()["id"]
+    assert v_res.json()["role"] == "volunteer"
+    assert v_res.json()["blood_group"] == "AB+"
+
+    # Admin creates coordinator
+    c_res = client.post("/api/admin/users", headers=admin_headers, json={
+        "email": "dp_test@example.com",
+        "password": "Password123!",
+        "full_name": "Điều Phối Viên Mới",
+        "role": "coordinator",
+        "phone": "0912345678",
+        "organization": "Bệnh viện Đa khoa",
+        "job_title": "Trưởng nhóm điều phối"
+    })
+    assert c_res.status_code == 201
+    c_id = c_res.json()["id"]
+    assert c_res.json()["role"] == "coordinator"
+    assert c_res.json()["organization"] == "Bệnh viện Đa khoa"
+
+    # Admin views volunteer details
+    v_detail = client.get(f"/api/admin/users/{v_id}", headers=admin_headers)
+    assert v_detail.status_code == 200
+    v_data = v_detail.json()
+    assert v_data["full_name"] == "Tình Nguyện Viên Mới"
+    assert v_data["blood_group"] == "AB+"
+    assert v_data["donor_id"] is not None
+    assert "appointments" in v_data
+
+    # Admin views coordinator details
+    c_detail = client.get(f"/api/admin/users/{c_id}", headers=admin_headers)
+    assert c_detail.status_code == 200
+    c_data = c_detail.json()
+    assert c_data["full_name"] == "Điều Phối Viên Mới"
+    assert c_data["organization"] == "Bệnh viện Đa khoa"
+    assert c_data["job_title"] == "Trưởng nhóm điều phối"
+
