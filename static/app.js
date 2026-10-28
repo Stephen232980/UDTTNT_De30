@@ -25,8 +25,8 @@ function readUser() {
 }
 const state = { token: readSession("md-token"), user: readUser(), page: "dashboard", dashboard: null, donors: [], appointments: [], campaigns: [], notifications: [], accounts: [], notificationsOpen: false, avatarMenuOpen: false, theme: readPreference("md-theme", "light") === "dark" ? "dark" : "light" };
 document.documentElement.dataset.theme = state.theme;
-const pages = { dashboard: "Tổng quan", campaigns: "Chiến dịch", accounts: "Quản lý tài khoản", donors: "Người đăng ký", appointments: "Lượt hẹn", ai: "Hỏi đáp AI", "ai-reports": "Báo cáo thống kê", reminders: "Nhắc lịch" };
-const icons = { dashboard: "📊", campaigns: "🚩", accounts: "👥", donors: "♙", appointments: "▦", ai: "💬", "ai-reports": "📊", reminders: "🔔" };
+const pages = { dashboard: "Tổng quan", campaigns: "Chiến dịch", accounts: "Quản lý tài khoản", donors: "Người đăng ký", appointments: "Lượt hẹn", history: "Lịch sử hiến máu", ai: "Hỏi đáp AI", "ai-reports": "Báo cáo thống kê", reminders: "Nhắc lịch" };
+const icons = { dashboard: "📊", campaigns: "🚩", accounts: "👥", donors: "♙", appointments: "📅", history: "📜", ai: "💬", "ai-reports": "📊", reminders: "🔔" };
 const canManage = () => Boolean(state.user && ["admin", "coordinator"].includes(state.user.role));
 const esc = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 const prettyDate = (value, options = { day: "numeric", month: "short", year: "numeric" }) => new Intl.DateTimeFormat("vi-VN", options).format(new Date(`${value}T00:00:00`));
@@ -176,14 +176,18 @@ async function loadData() {
 }
 
 function navigation() {
+    const isVolunteer = state.user?.role === "volunteer";
+    const volunteerPages = { campaigns: pages.campaigns, appointments: "Lịch hẹn", history: pages.history, ai: pages.ai };
     const menu = state.user?.role === "admin"
         ? { dashboard: pages.dashboard, campaigns: pages.campaigns, accounts: pages.accounts, ai: pages.ai, "ai-reports": pages["ai-reports"], reminders: pages.reminders }
         : canManage() ? { dashboard: pages.dashboard, campaigns: pages.campaigns, donors: pages.donors, appointments: pages.appointments, ai: pages.ai, "ai-reports": pages["ai-reports"], reminders: pages.reminders }
-            : { campaigns: pages.campaigns, appointments: pages.appointments, ai: pages.ai };
-    return Object.entries(menu).map(([key, label]) => `<button class="nav-item ${state.page === key ? "active" : ""}" data-page="${key}"><span class="nav-icon">${icons[key]}</span>${label}</button>`).join("");
+            : volunteerPages;
+    return Object.entries(menu).map(([key, label]) => `<button class="nav-item ${state.page === key ? "active" : ""}" data-page="${key}"><span class="nav-icon">${icons[key] || "•"}</span>${label}</button>`).join("");
 }
 
 function shell(content) {
+    const isVolunteer = state.user?.role === "volunteer";
+    const pageTitle = (state.page === "appointments" && isVolunteer) ? "Lịch hẹn" : (pages[state.page] || "Mạch Đỏ");
     const dateLabel = new Intl.DateTimeFormat("vi-VN", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
     const unread = state.notifications.filter((item) => !Number(item.is_read)).length;
     const badge = unread ? `<span class="notification-badge">${unread > 99 ? "99+" : unread}</span>` : "";
@@ -196,7 +200,7 @@ function shell(content) {
     const avatarMenu = state.avatarMenuOpen ? `<div class="avatar-dropdown" role="menu" aria-label="Tài khoản"><div class="avatar-menu-identity"><strong>${esc(state.user && state.user.display_name)}</strong><span>${esc(state.user && state.user.email)}</span></div><button type="button" class="avatar-menu-item" role="menuitem" data-action="profile"><span aria-hidden="true">👤</span> Hồ sơ cá nhân</button><button type="button" class="avatar-menu-item" role="menuitem" data-action="settings"><span aria-hidden="true">⚙️</span> Cài đặt</button><div class="avatar-menu-divider"></div><button type="button" class="avatar-menu-item avatar-menu-logout" role="menuitem" data-action="logout"><span aria-hidden="true">↗</span> Đăng xuất</button></div>` : "";
   return `<div class="app-shell"><aside class="sidebar"><div class="brand"><span class="brand-mark">+</span>Mạch Đỏ</div><div class="nav-label">Không gian làm việc</div><nav class="nav-list">${navigation()}</nav>
     <div class="side-bottom"><div class="user-mini"><div class="avatar">${initials(state.user && state.user.display_name)}</div><div><div class="user-name">${esc(state.user && state.user.display_name)}</div><div class="user-role">${esc(roleName(state.user && state.user.role))}</div></div></div><button class="logout" data-action="logout">↗ &nbsp;Đăng xuất</button></div></aside>
-  <main class="main-area"><header class="topbar"><div class="breadcrumb">MẠCH ĐỎ &nbsp;/&nbsp; <strong>${pages[state.page]}</strong></div><div class="top-actions"><div class="date-chip">◷ &nbsp;${dateLabel}</div><div class="notification-wrap"><button type="button" class="notification-bell" data-action="toggle-notifications" aria-label="Thông báo${unread ? `, ${unread} chưa đọc` : ""}" aria-expanded="${state.notificationsOpen}" aria-controls="notification-panel" title="Thông báo"><span aria-hidden="true">🔔</span>${badge}</button>${notificationPanel}</div><div class="avatar-menu-wrap"><button type="button" class="avatar top-avatar" data-action="toggle-avatar-menu" aria-label="Tài khoản cá nhân" aria-expanded="${state.avatarMenuOpen}" aria-haspopup="menu" title="Tài khoản">${initials(state.user && state.user.display_name)}</button>${avatarMenu}</div></div></header><section class="content">${content}</section></main>
+  <main class="main-area"><header class="topbar"><div class="breadcrumb">MẠCH ĐỎ &nbsp;/&nbsp; <strong>${pageTitle}</strong></div><div class="top-actions"><div class="date-chip">◷ &nbsp;${dateLabel}</div><div class="notification-wrap"><button type="button" class="notification-bell" data-action="toggle-notifications" aria-label="Thông báo${unread ? `, ${unread} chưa đọc` : ""}" aria-expanded="${state.notificationsOpen}" aria-controls="notification-panel" title="Thông báo"><span aria-hidden="true">🔔</span>${badge}</button>${notificationPanel}</div><div class="avatar-menu-wrap"><button type="button" class="avatar top-avatar" data-action="toggle-avatar-menu" aria-label="Tài khoản cá nhân" aria-expanded="${state.avatarMenuOpen}" aria-haspopup="menu" title="Tài khoản">${initials(state.user && state.user.display_name)}</button>${avatarMenu}</div></div></header><section class="content">${content}</section></main>
     <nav class="mobile-nav">${navigation()}</nav></div><dialog id="modal"></dialog>`;
 }
 
@@ -265,12 +269,202 @@ function adminUsersView() {
     <section class="section"><div class="section-head account-section-head"><h2>Danh sách tài khoản</h2><div class="account-section-tools"><span>${state.accounts.length} tài khoản</span><button class="button" data-action="new-account">＋ Thêm tài khoản mới</button></div></div><div class="table-wrap"><table class="account-table"><thead><tr><th>HỌ TÊN &amp; EMAIL</th><th>VAI TRÒ</th><th>NGÀY GIỜ ĐĂNG KÝ</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="empty">Chưa có tài khoản nào.</td></tr>`}</tbody></table></div></section>`;
 }
 
-function appointmentsView(query = "") {
+function coordinatorAppointmentsView(query = "") {
   const filtered = state.appointments.filter((item) => `${item.full_name} ${item.campaign_title} ${item.status}`.toLowerCase().includes(query.toLowerCase()));
-  const rows = filtered.map((item) => `<tr><td><div class="person-cell"><span class="person-dot">${initials(item.full_name)}</span>${esc(item.full_name)}</div></td><td>${esc(item.campaign_title)}</td><td>${prettyDate(item.start_at.slice(0, 10))} · ${item.start_at.slice(11)}</td><td>${esc(item.blood_group)}</td><td>${canManage() ? `<select class="status-select" data-appointment="${item.id}" aria-label="Trạng thái ${esc(item.full_name)}">${["Đã đăng ký", "Đã tham gia", "Vắng mặt", "Đã hủy"].map((status) => `<option value="${status}" ${item.status === status ? "selected" : ""}>${status === "Đã tham gia" ? "Đã tham gia hiến máu" : status}</option>`).join("")}</select>` : statusPill(item.status)}</td></tr>`).join("");
+  const rows = filtered.map((item) => `<tr><td><div class="person-cell"><span class="person-dot">${initials(item.full_name)}</span>${esc(item.full_name)}</div></td><td>${esc(item.campaign_title)}</td><td>${prettyDate(item.start_at.slice(0, 10))} · ${item.start_at.slice(11)}</td><td>${esc(item.blood_group)}</td><td><select class="status-select" data-appointment="${item.id}" aria-label="Trạng thái ${esc(item.full_name)}">${["Đã đăng ký", "Đã tham gia", "Vắng mặt", "Đã hủy"].map((status) => `<option value="${status}" ${item.status === status ? "selected" : ""}>${status === "Đã tham gia" ? "Đã tham gia hiến máu" : status}</option>`).join("")}</select></td></tr>`).join("");
   return `${heading("LỊCH THAM GIA", "Lượt hẹn", "Theo dõi đăng ký, điểm hiến và trạng thái tham gia.")}
     <div class="toolbar"><div class="filter-row"><input class="search" id="appointment-search" placeholder="Tìm người hoặc chiến dịch…" value="${esc(query)}"></div><span class="pill">${filtered.length} lượt</span></div>
     <section class="section"><div class="table-wrap"><table><thead><tr><th>NGƯỜI ĐĂNG KÝ</th><th>CHIẾN DỊCH</th><th>KHUNG GIỜ</th><th>NHÓM MÁU</th><th>TRẠNG THÁI</th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="empty">Chưa có lượt hẹn.</td></tr>`}</tbody></table></div></section>`;
+}
+
+function volunteerAppointmentsView() {
+  const allAppointments = state.appointments || [];
+  const currentDonor = state.donors[0] || {};
+  const bloodGroup = currentDonor.blood_group || state.user?.blood_group || "Chưa cập nhật";
+  
+  const registeredList = allAppointments.filter((item) => item.status === "Đã đăng ký");
+  const attendedList = allAppointments.filter((item) => item.status === "Đã tham gia");
+  
+  const activeTab = state.volunteerAppointmentTab || "all";
+  
+  const registeredCards = registeredList.map((item) => `
+    <article class="volunteer-appointment-card">
+      <div class="card-head">
+        <div class="card-title-group">
+          <span class="card-kicker">LỊCH HẸN SẮP TỚI</span>
+          <h3>${esc(item.campaign_title)}</h3>
+        </div>
+        ${statusPill(item.status)}
+      </div>
+      <div class="card-meta-grid">
+        <div class="meta-item"><span class="meta-icon">📅</span><span>${prettyDate(item.campaign_date || item.start_at.slice(0, 10))}</span></div>
+        <div class="meta-item"><span class="meta-icon">⏰</span><span>${item.start_at.slice(11)}${item.end_at ? " – " + item.end_at.slice(11) : ""}</span></div>
+        <div class="meta-item span-full"><span class="meta-icon">📍</span><span>${esc(item.venue || "Điểm hiến máu")}</span></div>
+      </div>
+      <div class="card-tips">
+        💡 <strong>Chuẩn bị trước khi đi:</strong> Nghỉ ngơi đủ giấc, ăn nhẹ, uống nhiều nước và mang theo giấy tờ tùy thân (CCCD / VNeID).
+      </div>
+      <div class="card-actions">
+        ${item.campaign_id ? `<button type="button" class="button secondary small" data-action="view-campaign" data-campaign="${item.campaign_id}">👁️ Chi tiết chiến dịch</button>` : ""}
+        <button type="button" class="button danger-quiet small" data-action="cancel-appointment" data-appointment-id="${item.id}" data-campaign-title="${esc(item.campaign_title)}">✕ Hủy đăng ký</button>
+      </div>
+    </article>
+  `).join("");
+
+  const attendedCards = attendedList.map((item, idx) => `
+    <article class="volunteer-attended-card">
+      <div class="attended-badge">🏅 LẦN THỨ ${attendedList.length - idx}</div>
+      <h3>${esc(item.campaign_title)}</h3>
+      <div class="attended-meta">
+        <div>📅 Ngày hiến: <strong>${prettyDate(item.campaign_date || item.start_at.slice(0, 10))}</strong></div>
+        <div>📍 Điểm hiến: <strong>${esc(item.venue || "Điểm hiến máu")}</strong></div>
+        <div>🩸 Nhóm máu: <span class="pill" style="font-weight:700">${esc(item.blood_group || bloodGroup)}</span></div>
+      </div>
+      <p class="attended-thanks">❤️ “Cảm ơn bạn đã sẻ chia giọt máu đào, mang lại niềm hy vọng và sự sống cho người bệnh.”</p>
+    </article>
+  `).join("");
+
+  const showRegistered = activeTab === "all" || activeTab === "registered";
+  const showAttended = activeTab === "all" || activeTab === "attended";
+
+  return `
+    ${heading("LỊCH THAM GIA", "Lịch hẹn của tôi", "Theo dõi chi tiết các khung giờ hiến máu đã đăng ký và các đợt đã tham gia gần đây.", `<button type="button" class="button small secondary" data-page="history">📜 Mở Lịch sử hiến máu →</button>`)}
+
+    <div class="metric-grid">
+      ${metric("Đã đăng ký", registeredList.length, "📌", "Khung giờ đang giữ chỗ sắp tới")}
+      ${metric("Đã tham gia", attendedList.length, "🩸", "Lần hiến máu thành công")}
+      ${metric("Nhóm máu", esc(bloodGroup), "💉", "Hồ sơ tình nguyện viên")}
+    </div>
+
+    <div class="volunteer-tabs-wrap">
+      <div class="volunteer-tabs" role="tablist" aria-label="Phân loại lịch hẹn">
+        <button type="button" class="volunteer-tab ${activeTab === "all" ? "active" : ""}" data-volunteer-tab="all">Tất cả lịch hẹn</button>
+        <button type="button" class="volunteer-tab ${activeTab === "registered" ? "active" : ""}" data-volunteer-tab="registered">📌 Đã đăng ký (${registeredList.length})</button>
+        <button type="button" class="volunteer-tab ${activeTab === "attended" ? "active" : ""}" data-volunteer-tab="attended">🩸 Đã tham gia (${attendedList.length})</button>
+      </div>
+    </div>
+
+    ${showRegistered ? `
+      <section class="section volunteer-section" id="section-registered">
+        <div class="section-head">
+          <div>
+            <h2>📌 Khung giờ đã đăng ký (${registeredList.length})</h2>
+            <span>Các lượt hẹn hiến máu bạn đang giữ chỗ, hãy chú ý thời gian tham gia nhé.</span>
+          </div>
+          <button type="button" class="button small secondary" data-page="campaigns">＋ Đăng ký thêm chiến dịch</button>
+        </div>
+        ${registeredList.length ? `<div class="volunteer-card-grid">${registeredCards}</div>` : `
+          <div class="volunteer-empty-state">
+            <span class="empty-icon">📅</span>
+            <h3>Bạn chưa có lượt hẹn nào sắp tới</h3>
+            <p>Hãy tham gia các chiến dịch hiến máu đang mở để sẻ chia giọt máu cứu người.</p>
+            <button type="button" class="button small" data-page="campaigns" style="margin-top:8px;">Khám phá chiến dịch đang mở →</button>
+          </div>
+        `}
+      </section>
+    ` : ""}
+
+    ${showAttended ? `
+      <section class="section volunteer-section" id="section-attended" style="margin-top:16px;">
+        <div class="section-head">
+          <div>
+            <h2>🩸 Đã tham gia hiến máu (${attendedList.length})</h2>
+            <span>Những lần bạn đã hoàn thành hiến máu tình nguyện được ghi nhận trong hệ thống.</span>
+          </div>
+        </div>
+        ${attendedList.length ? `<div class="volunteer-card-grid">${attendedCards}</div>` : `
+          <div class="volunteer-empty-state">
+            <span class="empty-icon">🏅</span>
+            <h3>Chưa ghi nhận lượt hiến máu đã tham gia</h3>
+            <p>Sau khi tham gia hiến máu tại điểm tiếp nhận, điều phối viên sẽ xác nhận trạng thái cho bạn.</p>
+          </div>
+        `}
+      </section>
+    ` : ""}
+
+    <div style="margin-top: 24px; padding: 18px 20px; background: var(--surface-card, #f9fafb); border: 1px dashed var(--border, #e5e7eb); border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <strong style="display:block; font-size: 15px; margin-bottom: 3px;">📜 Bạn muốn tra cứu toàn bộ hồ sơ & lịch sử hiến máu?</strong>
+        <span style="font-size: 13px; color: var(--muted, #6b7280);">Xem chi tiết tất cả các lượt đăng ký trong quá khứ, bảng tra cứu tìm kiếm và tỷ lệ tham gia tại trang Lịch sử.</span>
+      </div>
+      <button type="button" class="button small" data-page="history">Xem Lịch sử hiến máu →</button>
+    </div>
+  `;
+}
+
+function volunteerHistoryView(query = "") {
+  const allAppointments = state.appointments || [];
+  const currentDonor = state.donors[0] || {};
+  const bloodGroup = currentDonor.blood_group || state.user?.blood_group || "Chưa cập nhật";
+  const attendedList = allAppointments.filter((item) => item.status === "Đã tham gia");
+  const completionRate = allAppointments.length ? Math.round((attendedList.length / allAppointments.length) * 100) : 0;
+
+  const filteredHistory = allAppointments.filter((item) => 
+    `${item.campaign_title || ""} ${item.venue || ""} ${item.status || ""} ${item.blood_group || ""}`.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const historyRows = filteredHistory.map((item, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>
+        <strong style="color:var(--text)">${esc(item.campaign_title)}</strong>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">📍 ${esc(item.venue || "Điểm hiến máu")}</div>
+      </td>
+      <td>${prettyDate(item.campaign_date || item.start_at.slice(0, 10))}</td>
+      <td>${item.start_at.slice(11)}${item.end_at ? " – " + item.end_at.slice(11) : ""}</td>
+      <td><span class="pill" style="font-weight:700">${esc(item.blood_group || bloodGroup)}</span></td>
+      <td>${statusPill(item.status)}</td>
+      <td>
+        ${item.campaign_id ? `<button type="button" class="button secondary small" data-action="view-campaign" data-campaign="${item.campaign_id}">👁️ Chi tiết</button>` : "—"}
+      </td>
+    </tr>
+  `).join("");
+
+  return `
+    ${heading("HỒ SƠ HIẾN MÁU", "Lịch sử hiến máu", "Tra cứu chi tiết toàn bộ các lần đăng ký và tham gia hiến máu của bạn qua các thời kỳ.", `<button type="button" class="button small secondary" data-page="appointments">📅 Xem Lịch hẹn hiện tại →</button>`)}
+
+    <div class="metric-grid">
+      ${metric("Tổng lượt tham gia", allAppointments.length, "📜", "Tổng số đợt đăng ký trong hệ thống")}
+      ${metric("Hiến máu thành công", attendedList.length, "🩸", "Lần hiến máu đã được xác nhận")}
+      ${metric("Nhóm máu", esc(bloodGroup), "💉", "Thông tin nhóm máu của bạn")}
+      ${metric("Tỷ lệ hoàn thành", `${completionRate}%`, "📈", "Dựa trên số lượt đã đăng ký")}
+    </div>
+
+    <section class="section volunteer-section" id="section-history" style="margin-top:16px;">
+      <div class="section-head">
+        <div>
+          <h2>📜 Toàn bộ lịch sử hiến máu (${allAppointments.length})</h2>
+          <span>Hành trình sẻ chia sự sống và tấm lòng nhân ái của bạn.</span>
+        </div>
+        <span class="pill">${filteredHistory.length} kết quả</span>
+      </div>
+      <div class="toolbar" style="margin-bottom:12px;">
+        <input class="search" id="history-search" placeholder="Tìm kiếm chiến dịch, địa điểm, trạng thái, nhóm máu…" value="${esc(query)}">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>CHIẾN DỊCH &amp; ĐỊA ĐIỂM</th>
+              <th>NGÀY TỔ CHỨC</th>
+              <th>KHUNG GIỜ</th>
+              <th>NHÓM MÁU</th>
+              <th>TRẠNG THÁI</th>
+              <th>THAO TÁC</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${historyRows || `<tr><td colspan="7" class="empty">Không tìm thấy bản ghi lịch sử phù hợp.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function appointmentsView(query = "") {
+  return canManage() ? coordinatorAppointmentsView(query) : volunteerAppointmentsView();
 }
 
 function campaignOptions() { return state.campaigns.map((event) => `<option value="${event.id}">${esc(event.title)} · ${prettyDate(event.campaign_date)}</option>`).join(""); }
@@ -317,10 +511,10 @@ function render() {
   }
   try {
     if (!state.token || !state.user) return loginView();
-    if (!canManage() && !["campaigns", "appointments", "ai"].includes(state.page)) state.page = "campaigns";
-    if (state.user.role === "admin" && ["donors", "appointments"].includes(state.page)) state.page = "campaigns";
+    if (!canManage() && !["campaigns", "appointments", "history", "ai"].includes(state.page)) state.page = "campaigns";
+    if (state.user.role === "admin" && ["donors", "appointments", "history"].includes(state.page)) state.page = "campaigns";
     if (state.user.role !== "admin" && state.page === "accounts") state.page = "campaigns";
-    const views = { dashboard: dashboardView, campaigns: campaignsView, accounts: adminUsersView, donors: donorsView, appointments: appointmentsView, ai: aiQaView, "ai-reports": aiReportsView, reminders: remindersView };
+    const views = { dashboard: dashboardView, campaigns: campaignsView, accounts: adminUsersView, donors: donorsView, appointments: appointmentsView, history: volunteerHistoryView, ai: aiQaView, "ai-reports": aiReportsView, reminders: remindersView };
     app.innerHTML = shell((views[state.page] || dashboardView)());
     app.querySelectorAll("[data-page]").forEach((button) => button.addEventListener("click", () => { state.page = button.dataset.page; render(); }));
     bindActionControls(app);
@@ -349,6 +543,8 @@ function render() {
     if (donorSearch) donorSearch.addEventListener("input", (event) => { const pos = event.target.selectionStart; renderDonorSearch(event.target.value, pos); });
     const appointmentSearch = document.querySelector("#appointment-search");
     if (appointmentSearch) appointmentSearch.addEventListener("input", (event) => { const pos = event.target.selectionStart; renderAppointmentSearch(event.target.value, pos); });
+    const historySearch = document.querySelector("#history-search");
+    if (historySearch) historySearch.addEventListener("input", (event) => { const pos = event.target.selectionStart; renderHistorySearch(event.target.value, pos); });
     bindStatusControls();
     app.querySelectorAll("[data-user-role]").forEach((select) => select.addEventListener("change", async () => {
       try {
@@ -362,10 +558,19 @@ function render() {
         await loadData(); render(); toast("Đã cập nhật trạng thái chiến dịch.");
       } catch (error) { toast(error.message); }
     }));
+    bindVolunteerTabs(app);
   } catch (error) {
     console.error("Không thể dựng giao diện.", error);
     app.innerHTML = `<main class="content"><h1>Không thể tải giao diện</h1><p>Vui lòng tải lại trang. Nếu lỗi tiếp tục, hãy kiểm tra kết nối máy chủ.</p></main>`;
   }
+}
+
+function bindVolunteerTabs(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-volunteer-tab]").forEach((tab) => tab.addEventListener("click", () => {
+    state.volunteerAppointmentTab = tab.dataset.volunteerTab;
+    render();
+  }));
 }
 
 function bindActionControls(root) {
@@ -397,11 +602,24 @@ function renderAppointmentSearch(query, pos) {
   const content = document.querySelector(".content");
   if (!content) return;
   content.innerHTML = appointmentsView(query);
+  bindActionControls(content);
+  bindVolunteerTabs(content);
   const next = document.querySelector("#appointment-search");
   if (!next) return;
   next.focus();
   next.setSelectionRange(pos, pos);
   bindStatusControls();
+}
+
+function renderHistorySearch(query, pos) {
+  const content = document.querySelector(".content");
+  if (!content) return;
+  content.innerHTML = volunteerHistoryView(query);
+  bindActionControls(content);
+  const next = document.querySelector("#history-search");
+  if (!next) return;
+  next.focus();
+  next.setSelectionRange(pos, pos);
 }
 
 function showModal(title, body, wide = false) {
@@ -967,6 +1185,17 @@ async function handleAction(action, button) {
       await loadData(); render(); toast("Đã xóa tài khoản.");
     } catch (error) { toast(error.message); }
   }
+  if (action === "cancel-appointment") {
+    const aid = Number(button.dataset.appointmentId);
+    const campaignTitle = button.dataset.campaignTitle || "lịch hẹn này";
+    if (!window.confirm(`Bạn có chắc chắn muốn hủy đăng ký hiến máu tại “${campaignTitle}”?`)) return;
+    try {
+      await api(`/api/appointments/${aid}/cancel`, { method: "PATCH" });
+      await loadData();
+      render();
+      toast("Đã hủy lịch đăng ký hiến máu thành công.");
+    } catch (error) { toast(error.message); }
+  }
   if (action === "book") openBooking(Number(button.dataset.slot));
   if (action === "remind") {
     const field = document.querySelector("#reminder-campaign");
@@ -981,10 +1210,53 @@ async function handleAction(action, button) {
 async function openBooking(slotId) {
   const slot = state.campaigns.flatMap((event) => event.slots.map((item) => ({ ...item, event }))).find((item) => item.id === slotId);
   if (!slot) return;
-  if (!showModal("Đăng ký khung giờ", `<form id="booking-form"><p style="font-size:12px;line-height:1.7;color:#687970">${esc(slot.event.title)}<br>${esc(slot.event.venue)} · ${prettyDate(slot.event.campaign_date)} · ${slot.start_at.slice(11)}–${slot.end_at.slice(11)}</p><div class="field"><label>NGƯỜI ĐĂNG KÝ</label><select name="donor_id" required>${state.donors.map((person) => `<option value="${person.id}">${esc(person.full_name)} · ${esc(person.phone)}</option>`).join("")}</select></div><div class="dialog-actions"><button type="button" class="button secondary" data-close>Hủy</button><button class="button">Xác nhận giữ chỗ</button></div></form>`)) return;
+  const isManager = canManage();
+  const currentDonor = state.donors[0] || {};
+  const registrantName = (state.user && state.user.role === "volunteer")
+    ? (state.user.display_name || currentDonor.full_name || "Tình nguyện viên")
+    : (currentDonor.full_name || state.user?.display_name || "Người đăng ký");
+  const registrantPhone = currentDonor.phone || state.user?.phone || "";
+  const registrantEmail = state.user?.email || currentDonor.email || "";
+  const donorId = currentDonor.id || (state.user && state.user.donor_id);
+
+  const registrantField = isManager ? `
+    <div class="field">
+      <label for="booking-donor-select">NGƯỜI ĐĂNG KÝ (CHỌN TÌNH NGUYỆN VIÊN / NGƯỜI HIẾN MÁU)</label>
+      <select id="booking-donor-select" name="donor_id" required>
+        ${state.donors.map((person) => `<option value="${person.id}">${esc(person.full_name)} · ${esc(person.phone || person.email || "ID #" + person.id)}</option>`).join("")}
+      </select>
+    </div>
+  ` : `
+    <div class="field">
+      <label>NGƯỜI ĐĂNG KÝ</label>
+      <div class="booking-registrant-card">
+        <div class="booking-registrant-avatar">${initials(registrantName)}</div>
+        <div class="booking-registrant-info">
+          <div class="booking-registrant-name">${esc(registrantName)}</div>
+          <div class="booking-registrant-meta">${esc(registrantPhone || registrantEmail || "Hồ sơ của bạn")}${currentDonor.blood_group && currentDonor.blood_group !== "Chưa cập nhật" ? ` · Nhóm máu ${esc(currentDonor.blood_group)}` : ""}</div>
+        </div>
+      </div>
+      <input type="hidden" name="donor_id" value="${donorId || ""}">
+    </div>
+  `;
+
+  if (!showModal("Đăng ký khung giờ", `<form id="booking-form"><p style="font-size:12px;line-height:1.7;color:#687970">${esc(slot.event.title)}<br>${esc(slot.event.venue)} · ${prettyDate(slot.event.campaign_date)} · ${slot.start_at.slice(11)}–${slot.end_at.slice(11)}</p>${registrantField}<div class="dialog-actions"><button type="button" class="button secondary" data-close>Hủy</button><button class="button">Xác nhận giữ chỗ</button></div></form>`)) return;
   const form = document.querySelector("#booking-form");
   if (!form) return toast("Không thể khởi tạo biểu mẫu đăng ký.");
-  form.addEventListener("submit", async (event) => { event.preventDefault(); const donorId = Number(new FormData(event.currentTarget).get("donor_id")); try { await api("/api/appointments", { method: "POST", body: JSON.stringify({ donor_id: donorId, slot_id: slotId }) }); const dialog = document.querySelector("#modal"); if (dialog) dialog.close(); await loadData(); render(); toast("Đăng ký khung giờ thành công."); } catch (error) { toast(error.message); } });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const donorIdValue = new FormData(event.currentTarget).get("donor_id");
+    const selectedDonorId = Number(donorIdValue);
+    if (!selectedDonorId) return toast("Không tìm thấy thông tin người đăng ký.");
+    try {
+      await api("/api/appointments", { method: "POST", body: JSON.stringify({ donor_id: selectedDonorId, slot_id: slotId }) });
+      const dialog = document.querySelector("#modal");
+      if (dialog) dialog.close();
+      await loadData();
+      render();
+      toast("Đăng ký khung giờ thành công.");
+    } catch (error) { toast(error.message); }
+  });
 }
 
 async function askProcedure(question, button) {

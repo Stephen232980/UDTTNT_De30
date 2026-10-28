@@ -806,3 +806,87 @@ def test_admin_creates_user_by_role_and_views_account_details(tmp_path, monkeypa
     assert c_data["organization"] == "Bệnh viện Đa khoa"
     assert c_data["job_title"] == "Trưởng nhóm điều phối"
 
+
+def test_appointment_registration_identity_and_authorization(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "DB_PATH", tmp_path / "appointment_identity.db")
+    main.initialize_database()
+    client = TestClient(main.app)
+
+    # 1. Login volunteer demo account
+    v_login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD})
+    assert v_login.status_code == 200
+    v_user = v_login.json()["user"]
+    v_headers = {"Authorization": f"Bearer {v_login.json()['token']}"}
+
+    # Verify donor profile linked with volunteer has the correct full_name
+    v_profile = client.get("/api/donors/me", headers=v_headers).json()
+    assert v_profile["full_name"] == "Tình nguyện viên"
+    v_donor_id = int(v_profile["id"])
+
+    # Get available campaign slot
+    campaigns = client.get("/api/campaigns", headers=v_headers).json()
+    assert len(campaigns) > 0
+    slot_id = campaigns[0]["slots"][0]["id"]
+
+    # 2. Volunteer registers for themselves -> Success (201)
+    res_self = client.post("/api/appointments", headers=v_headers, json={"donor_id": v_donor_id, "slot_id": slot_id})
+    assert res_self.status_code == 201
+    assert res_self.json()["full_name"] == "Tình nguyện viên"
+
+    # 3. Volunteer tries to register for another existing donor -> Forbidden (403)
+    with main.connect() as db:
+        other_donor_id = db.execute("SELECT id FROM donors WHERE id != ? LIMIT 1", (v_donor_id,)).fetchone()[0]
+    another_slot_id = campaigns[0]["slots"][1]["id"]
+    res_other = client.post("/api/appointments", headers=v_headers, json={"donor_id": other_donor_id, "slot_id": another_slot_id})
+    assert res_other.status_code == 403
+
+    # 4. Coordinator registers on behalf of a donor -> Success (201)
+    coord_login = client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD})
+    assert coord_login.status_code == 200
+    coord_headers = {"Authorization": f"Bearer {coord_login.json()['token']}"}
+    res_coord = client.post("/api/appointments", headers=coord_headers, json={"donor_id": v_donor_id, "slot_id": another_slot_id})
+    assert res_coord.status_code == 201
+
+
+def test_volunteer_cancel_appointment_and_history_workflow(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "DB_PATH", tmp_path / "cancel_workflow.db")
+    main.initialize_database()
+    client = TestClient(main.app)
+
+    # Login volunteer
+    v_login = client.post("/api/auth/login", json={"email": "tinhnguyen@machdo.com", "password": main.DEMO_PASSWORD})
+    v_headers = {"Authorization": f"Bearer {v_login.json()['token']}"}
+    donor_id = int(v_login.json()["user"]["donor_id"])
+
+    # Login coordinator
+    c_login = client.post("/api/auth/login", json={"email": "dieuphoi@machdo.com", "password": main.DEMO_PASSWORD})
+    c_headers = {"Authorization": f"Bearer {c_login.json()['token']}"}
+
+    # Register an appointment
+    campaigns = client.get("/api/campaigns", headers=v_headers).json()
+    slot_id = campaigns[0]["slots"][0]["id"]
+    booking = client.post("/api/appointments", headers=v_headers, json={"donor_id": donor_id, "slot_id": slot_id})
+    assert booking.status_code == 201
+    aid = booking.json()["id"]
+
+    # Volunteer cancels their own appointment -> Success (200)
+    cancel_res = client.patch(f"/api/appointments/{aid}/cancel", headers=v_headers)
+    assert cancel_res.status_code == 200
+    assert cancel_res.json()["status"] == "Đã hủy"
+
+    # Verify status in appointments list
+    my_apps = client.get("/api/appointments", headers=v_headers).json()
+    assert any(a["id"] == aid and a["status"] == "Đã hủy" for a in my_apps)
+
+    # Coordinator marks another appointment as attended
+    slot_id_2 = campaigns[0]["slots"][1]["id"]
+    booking_2 = client.post("/api/appointments", headers=c_headers, json={"donor_id": donor_id, "slot_id": slot_id_2})
+    aid_2 = booking_2.json()["id"]
+    client.patch(f"/api/appointments/{aid_2}", headers=c_headers, json={"status": "Đã tham gia"})
+
+    # Volunteer cannot cancel an attended appointment -> 400
+    res_cancel_attended = client.patch(f"/api/appointments/{aid_2}/cancel", headers=v_headers)
+    assert res_cancel_attended.status_code == 400
+
+
+

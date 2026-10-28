@@ -162,6 +162,7 @@ def initialize_database() -> None:
         if not db.execute("SELECT 1 FROM donors LIMIT 1").fetchone():
             db.executemany("INSERT INTO donors(full_name,phone,email,blood_group) VALUES (?,?,?,?)", [("Nguyễn Minh Anh","0901234567","minhanh@example.vn","O+"),("Trần Gia Bảo","0912345678","giabao@example.vn","A+"),("Lê Thu Hà","0987654321","thuha@example.vn","B+"),("Phạm Quốc Huy","0976543210","quochuy@example.vn","AB+"),("Võ Khánh Linh","0934567890","khanhlinh@example.vn","O-")])
         db.execute("UPDATE users SET donor_id=(SELECT id FROM donors ORDER BY id LIMIT 1) WHERE username='tinhnguyen@machdo.com' AND donor_id IS NULL")
+        db.execute("UPDATE donors SET full_name='Tình nguyện viên' WHERE id=(SELECT donor_id FROM users WHERE username='tinhnguyen@machdo.com') AND full_name='Nguyễn Minh Anh'")
         if not db.execute("SELECT 1 FROM procedures LIMIT 1").fetchone():
             db.executemany("INSERT INTO procedures(title,content) VALUES (?,?)", [("Trước khi hiến máu","Đăng ký thông tin, xuất trình giấy tờ tùy thân, được nhân viên y tế tư vấn và kiểm tra sức khỏe. Nên ăn nhẹ, uống đủ nước và nghỉ ngơi đầy đủ."),("Quy trình hiến máu","Quy trình gồm đăng ký, khám sàng lọc, hiến máu dưới sự giám sát của nhân viên y tế và nghỉ tại chỗ sau hiến; thường mất khoảng 45 đến 60 phút."),("Sau khi hiến máu","Nghỉ tại điểm hiến ít nhất 10 đến 15 phút, uống nước và dùng đồ ăn nhẹ. Tránh hoạt động gắng sức trong ngày; nếu thấy không khỏe, báo ngay nhân viên y tế."),("Điều kiện hiến máu","Việc đủ điều kiện hiến máu do nhân viên y tế đánh giá trực tiếp tại điểm hiến. Trợ lý không thể đánh giá sức khỏe cá nhân.")])
 
@@ -776,7 +777,7 @@ def delete_campaign(cid:int,_:dict[str,str]=Depends(roles("admin","coordinator")
 
 @app.get("/api/appointments")
 def appointments(user:dict[str,str]=Depends(signed_in))->list[dict[str,object]]:
-    query="SELECT a.id,a.donor_id,d.full_name,d.phone,d.blood_group,a.slot_id,a.status,s.start_at,c.title campaign_title,c.venue FROM appointments a JOIN donors d ON d.id=a.donor_id JOIN slots s ON s.id=a.slot_id JOIN campaigns c ON c.id=s.campaign_id"
+    query="SELECT a.id,a.donor_id,d.full_name,d.phone,d.blood_group,a.slot_id,a.status,s.start_at,s.end_at,c.id campaign_id,c.title campaign_title,c.venue,c.campaign_date,a.created_at FROM appointments a JOIN donors d ON d.id=a.donor_id JOIN slots s ON s.id=a.slot_id JOIN campaigns c ON c.id=s.campaign_id"
     with connect() as db:
         if user["role"]=="volunteer":
             if not user["donor_id"]: return []
@@ -814,6 +815,21 @@ def update_appointment(aid:int,data:StatusInput,_:dict[str,str]=Depends(roles("a
         changed=db.execute("UPDATE appointments SET status=? WHERE id=?",(data.status,aid))
         if not changed.rowcount: raise HTTPException(404,"Không tìm thấy lượt đăng ký")
         return dict(db.execute("SELECT * FROM appointments WHERE id=?",(aid,)).fetchone())
+
+
+@app.delete("/api/appointments/{aid}")
+@app.patch("/api/appointments/{aid}/cancel")
+def cancel_appointment(aid: int, user: dict[str, str] = Depends(signed_in)) -> dict[str, object]:
+    with connect() as db:
+        row = db.execute("SELECT * FROM appointments WHERE id=?", (aid,)).fetchone()
+        if row is None:
+            raise HTTPException(404, "Không tìm thấy lượt đăng ký")
+        if user["role"] == "volunteer" and str(row["donor_id"]) != str(user.get("donor_id")):
+            raise HTTPException(403, "Bạn chỉ có thể hủy lịch hẹn của mình")
+        if row["status"] == "Đã tham gia":
+            raise HTTPException(400, "Không thể hủy lượt hẹn đã tham gia")
+        db.execute("UPDATE appointments SET status='Đã hủy' WHERE id=?", (aid,))
+        return dict(db.execute("SELECT a.id,a.donor_id,d.full_name,d.phone,d.blood_group,a.slot_id,a.status,s.start_at,s.end_at,c.id campaign_id,c.title campaign_title,c.venue,c.campaign_date,a.created_at FROM appointments a JOIN donors d ON d.id=a.donor_id JOIN slots s ON s.id=a.slot_id JOIN campaigns c ON c.id=s.campaign_id WHERE a.id=?", (aid,)).fetchone())
 
 
 def ai_call(system:str,prompt:str)->str|None:

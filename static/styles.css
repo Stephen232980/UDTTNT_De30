@@ -2063,3 +2063,293 @@ dialog:has(.user-detail-dialog) {
     }
 }
 
+.booking-registrant-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8faf8;
+}
+
+:root[data-theme="dark"] .booking-registrant-card {
+    background: #1e2823;
+    border-color: #2b3b33;
+}
+
+.booking-registrant-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e8f4ed;
+    color: var(--forest);
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+:root[data-theme="dark"] .booking-registrant-avatar {
+    background: #233e31;
+    color: #6ed09e;
+}
+
+.booking-registrant-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.booking-registrant-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.booking-registrant-meta {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* Volunteer Journey Styles */
+.volunteer-tabs-wrap {
+    margin: 16px 0 14px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+}
+
+.volunteer-tabs {
+    display: flex;
+    gap: 8px;
+    background: #edf3ee;
+    padding: 4px;
+    border-radius: 8px;
+}
+
+:root[data-theme="dark"] .volunteer-tabs {
+    background: #1e2823;
+}
+
+.volunteer-tab {
+    padding: 7px 16px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.volunteer-tab:hover {
+    color: var(--ink);
+}
+
+.volunteer-tab.active {
+    background: var(--white);
+    color: var(--forest);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="dark"] .volunteer-tab.active {
+    background: #2b3b33;
+    color: #85b89c;
+}
+
+.volunteer-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+}
+
+.volunteer-appointment-card {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--white);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.volunteer-appointment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme="dark"] .volunteer-appointment-card {
+    background: #18221d;
+    border-color: #2b3b33;
+}
+
+.volunteer-appointment-card .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.volunteer-appointment-card .card-kicker {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--gold);
+    display: block;
+    margin-bottom: 2px;
+}
+
+.volunteer-appointment-card h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.card-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--ink);
+}
+
+.card-meta-grid .span-full {
+    grid-column: 1 / -1;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.meta-icon {
+    font-size: 14px;
+    opacity: 0.85;
+}
+
+.card-tips {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #f7faf7;
+    border-left: 3px solid var(--forest);
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+:root[data-theme="dark"] .card-tips {
+    background: #1f2c25;
+    border-left-color: #85b89c;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+}
+
+.volunteer-attended-card {
+    border: 1px solid rgba(217, 56, 58, 0.2);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(217, 56, 58, 0.03), rgba(26, 48, 41, 0.04));
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+:root[data-theme="dark"] .volunteer-attended-card {
+    background: #1b2620;
+    border-color: rgba(217, 56, 58, 0.3);
+}
+
+.attended-badge {
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--red);
+    background: rgba(217, 56, 58, 0.1);
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+}
+
+.volunteer-attended-card h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.attended-meta {
+    font-size: 12.5px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.attended-thanks {
+    margin: 0;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--forest);
+    line-height: 1.5;
+}
+
+:root[data-theme="dark"] .attended-thanks {
+    color: #85b89c;
+}
+
+.volunteer-empty-state {
+    padding: 32px 16px;
+    text-align: center;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+:root[data-theme="dark"] .volunteer-empty-state {
+    background: #18221d;
+    border-color: #2b3b33;
+}
+
+.volunteer-empty-state .empty-icon {
+    font-size: 32px;
+    margin-bottom: 4px;
+    opacity: 0.7;
+}
+
+.volunteer-empty-state h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.volunteer-empty-state p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 400px;
+}
+
+
+
